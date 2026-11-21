@@ -10,6 +10,7 @@ export default function App(){
   const [product,setProduct] = useState(null);
   const [orders,setOrders] = useState([]);
   const [commissions,setCommissions] = useState([]);
+  const [referrals,setReferrals] = useState([]);
   const [adminOrders,setAdminOrders] = useState([]);
   const [email,setEmail] = useState('');
   const [password,setPassword] = useState('');
@@ -28,7 +29,20 @@ export default function App(){
   useEffect(()=>{ if(session) load(); else {setProfile(null);setOrders([]);setCommissions([])} },[session]);
   async function load(){
     const uid = session.user.id;
-    const [{data:p},{data:prod},{data:o},{data:c}] = await Promise.all([
+    
+const [{data:p},{data:prod},{data:o},{data:c},{data:refs}] = await Promise.all([
+  supabase.from('profiles').select('*').eq('id',uid).single(),
+  supabase.from('products').select('*').eq('active',true).limit(1).maybeSingle(),
+  supabase.from('orders').select('id,created_at,status,amount,retail_verified,razorpay_payment_id').eq('buyer_id',uid).order('created_at',{ascending:false}),
+  supabase.from('sales_commissions').select('id,created_at,amount,status,source_order_id').eq('beneficiary_id',uid).order('created_at',{ascending:false}),
+  supabase.rpc('get_my_referrals')
+]);
+setProfile(p||null);
+setProduct(prod||null);
+setOrders(o||[]);
+setCommissions(c||[]);
+setReferrals(refs||[]);
+
       supabase.from('profiles').select('*').eq('id',uid).single(),
       supabase.from('products').select('*').eq('active',true).limit(1).maybeSingle(),
       supabase.from('orders').select('id,created_at,status,amount,retail_verified,razorpay_payment_id').eq('buyer_id',uid).order('created_at',{ascending:false}),
@@ -129,7 +143,58 @@ export default function App(){
       </form>
       <p className="muted tiny">Use a valid email. Your account may require email confirmation depending on Supabase settings.</p>
     </section> : <><section className="welcome"><div><p className="eyebrow">MEMBER DASHBOARD</p><h2>Hello, {profile?.full_name || session.user.email}</h2><p className="muted">Referral code: <b>{profile?.referral_code || 'Preparing…'}</b></p></div><span className="rank">{profile?.rank || 'Not Activated'}</span></section>
-      <div className="stats"><article className="stat"><small>Verified commissions</small><strong>{money(totalCommission)}</strong></article><article className="stat"><small>My orders</small><strong>{orders.length}</strong></article><article className="stat"><small>Current rank</small><strong className="ranktext">{profile?.rank || 'Not Activated'}</strong></article></div>
+      <div className="stats">
+<section className="panel">
+  <p className="eyebrow">MY NETWORK</p>
+  <h2>My Referral Team</h2>
+
+  <div className="stat">
+    <small>Total direct referrals</small>
+    <strong>{referrals.length}</strong>
+  </div>
+
+  {ranks.map(rank => {
+    const members = referrals.filter(
+      r => String(r.referred_user_rank || '').toLowerCase()
+        === rank.toLowerCase()
+    );
+
+    return (
+      <details key={rank} className="referral-group">
+        <summary>
+          <b>{rank}</b>
+          <span>{members.length} customers</span>
+        </summary>
+
+        {members.length ? (
+          <div className="tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Payment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {members.map(member => (
+                  <tr key={member.referred_user_id}>
+                    <td>{member.referred_user_name || 'Member'}</td>
+                    <td>
+                      {member.payment_completed ? 'Completed' : 'Pending'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="muted tiny">No customers in this rank yet.</p>
+        )}
+      </details>
+    );
+  })}
+</section> 
+      <article className="stat"><small>Verified commissions</small><strong>{money(totalCommission)}</strong></article><article className="stat"><small>My orders</small><strong>{orders.length}</strong></article><article className="stat"><small>Current rank</small><strong className="ranktext">{profile?.rank || 'Not Activated'}</strong></article></div>
       <section className="panel"><div className="sectionhead"><div><p className="eyebrow">DIGITAL PRODUCT</p><h2>{product?.title || 'Your eBook'}</h2></div><span className="price">₹600</span></div><p className="muted">{product?.description || 'The same eBook is offered to every customer.'}</p><div className="actions"><button className="primary" onClick={placeOrder} disabled={busy||!product}>{busy?'Please wait…':'Buy eBook · ₹600'}</button><button className="outline dark" onClick={downloadBook} disabled={busy}>Download purchased eBook</button></div><p className="tiny muted">Secure Razorpay checkout. Your eBook unlocks only after the server verifies a captured ₹600 payment. Do not close the page until checkout responds.</p></section>
       <section className="panel"><h2>Rank pathway</h2><div className="rankpath">{ranks.map((r,i)=><div className={'rankstep '+(r===profile?.rank?'current':'')} key={r}><span>{String(i+1).padStart(2,'0')}</span><b>{r}</b></div>)}</div><p className="tiny muted">Ranks must be assigned using approved, documented genuine retail-sales criteria. Recruitment counts and paid rank upgrades are not used.</p></section>
       <section className="panel"><h2>My orders</h2><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th><th>Retail verified</th></tr></thead><tbody>{orders.length?orders.map(o=><tr key={o.id}><td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td><td>{money(o.amount)}</td><td><span className={'status '+o.status}>{o.status}</span></td><td>{o.retail_verified?'Yes':'Pending'}</td></tr>):<tr><td colSpan="4" className="muted">No orders yet.</td></tr>}</tbody></table></div></section>
