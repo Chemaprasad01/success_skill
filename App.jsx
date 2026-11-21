@@ -53,7 +53,7 @@ setReferrals(refs||[]);
       const {data:all} = await supabase.from('orders').select('id,created_at,status,amount,retail_verified,buyer_id,razorpay_payment_id').order('created_at',{ascending:false}).limit(100);
       setAdminOrders(all||[]);
     }
-  }
+            }
   async function authSubmit(e){
     e.preventDefault(); setBusy(true); setMessage('');
     try{
