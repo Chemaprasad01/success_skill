@@ -28,39 +28,84 @@ export default function App(){
   },[]);
   useEffect(()=>{ if(session) load(); else {setProfile(null);setOrders([]);setCommissions([])} },[session])
 async function load() {
-  const uid = session.user.id;
+  try {
+    const { data: { user }, error: authError } =
+      await supabase.auth.getUser();
 
-  const [
-    { data: p },
-    { data: prod },
-    { data: o },
-    { data: c },
-    { data: refs }
-  ] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', uid).single(),
-    supabase.from('products').select('*').eq('active', true).limit(1).maybeSingle(),
-    supabase.from('orders').select('id,created_at,status,amount,retail_verified,razorpay_payment_id').eq('buyer_id', uid).order('created_at', { ascending: false }),
-    supabase.from('sales_commissions').select('id,created_at,amount,status,source_order_id').eq('beneficiary_id', uid).order('created_at', { ascending: false }),
-    supabase.rpc('get_my_referrals')
-  ]);
+    if (authError) throw authError;
+    if (!user) throw new Error('No authenticated user found.');
 
-  setProfile(p || null);
-  setProduct(prod || null);
-  setOrders(o || []);
-  setCommissions(c || []);
-  setReferrals(refs || []);
+    const uid = user.id;
 
-  if (p?.role === 'admin') {
-    const { data: all } = await supabase
-      .from('orders')
-      .select('id,created_at,status,amount,retail_verified,buyer_id,razorpay_payment_id')
-      .order('created_at', { ascending: false })
-      .limit(100);
+    const [
+      { data: p, error: profileError },
+      { data: prod, error: productError },
+      { data: o, error: ordersError },
+      { data: c, error: commissionError },
+      { data: refs, error: referralError }
+    ] = await Promise.all([
+      supabase.from('profiles')
+        .select('*')
+        .eq('id', uid)
+        .single(),
 
-    setAdminOrders(all || []);
+      supabase.from('products')
+        .select('*')
+        .eq('active', true)
+        .limit(1)
+        .maybeSingle(),
+
+      supabase.from('orders')
+        .select('id,created_at,status,amount,retail_verified,razorpay_payment_id')
+        .eq('buyer_id', uid)
+        .order('created_at', { ascending: false }),
+
+      supabase.from('sales_commissions')
+        .select('id,created_at,amount,status,source_order_id')
+        .eq('beneficiary_id', uid)
+        .order('created_at', { ascending: false }),
+
+      supabase.rpc('get_my_referrals')
+    ]);
+
+    if (profileError) throw new Error(
+      'Profile loading failed: ' + profileError.message
+    );
+
+    if (productError) throw productError;
+    if (ordersError) throw ordersError;
+    if (commissionError) throw commissionError;
+    if (referralError) throw referralError;
+
+    console.log('SUCCESS SKILL PROFILE:', p);
+
+    setProfile(p);
+    setProduct(prod || null);
+    setOrders(o || []);
+    setCommissions(c || []);
+    setReferrals(refs || []);
+
+    if (p.role === 'admin') {
+      const { data: all, error: adminError } =
+        await supabase.from('orders')
+          .select('id,created_at,status,amount,retail_verified,buyer_id,razorpay_payment_id')
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+      if (adminError) throw adminError;
+
+      setAdminOrders(all || []);
+    } else {
+      setAdminOrders([]);
+    }
+
+    setMessage('');
+  } catch (error) {
+    console.error('Dashboard loading error:', error);
+    setMessage(error.message || 'Dashboard loading failed.');
   }
 }
-    
+
   
 async function authSubmit(e){
     e.preventDefault(); setBusy(true); setMessage('');
