@@ -26,35 +26,43 @@ export default function App(){
     const {data:{subscription}} = supabase.auth.onAuthStateChange((_e,s)=>setSession(s));
     return ()=>subscription.unsubscribe();
   },[]);
-  useEffect(()=>{ if(session) load(); else {setProfile(null);setOrders([]);setCommissions([])} },[session]);
-  async function load(){
-    const uid = session.user.id;
-    
-const [{data:p},{data:prod},{data:o},{data:c},{data:refs}] = await Promise.all([
-  supabase.from('profiles').select('*').eq('id',uid).single(),
-  supabase.from('products').select('*').eq('active',true).limit(1).maybeSingle(),
-  supabase.from('orders').select('id,created_at,status,amount,retail_verified,razorpay_payment_id').eq('buyer_id',uid).order('created_at',{ascending:false}),
-  supabase.from('sales_commissions').select('id,created_at,amount,status,source_order_id').eq('beneficiary_id',uid).order('created_at',{ascending:false}),
-  supabase.rpc('get_my_referrals')
-]);
-setProfile(p||null);
-setProduct(prod||null);
-setOrders(o||[]);
-setCommissions(c||[]);
-setReferrals(refs||[]);
+  useEffect(()=>{ if(session) load(); else {setProfile(null);setOrders([]);setCommissions([])} },[session])
+async function load() {
+  const uid = session.user.id;
 
-      supabase.from('profiles').select('*').eq('id',uid).single(),
-      supabase.from('products').select('*').eq('active',true).limit(1).maybeSingle(),
-      supabase.from('orders').select('id,created_at,status,amount,retail_verified,razorpay_payment_id').eq('buyer_id',uid).order('created_at',{ascending:false}),
-      supabase.from('sales_commissions').select('id,created_at,amount,status,source_order_id').eq('beneficiary_id',uid).order('created_at',{ascending:false})
-    ]);
-    setProfile(p||null); setProduct(prod||null); setOrders(o||[]); setCommissions(c||[]);
-    if(p?.role==='admin'){
-      const {data:all} = await supabase.from('orders').select('id,created_at,status,amount,retail_verified,buyer_id,razorpay_payment_id').order('created_at',{ascending:false}).limit(100);
-      setAdminOrders(all||[]);
-    }
+  const [
+    { data: p },
+    { data: prod },
+    { data: o },
+    { data: c },
+    { data: refs }
+  ] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', uid).single(),
+    supabase.from('products').select('*').eq('active', true).limit(1).maybeSingle(),
+    supabase.from('orders').select('id,created_at,status,amount,retail_verified,razorpay_payment_id').eq('buyer_id', uid).order('created_at', { ascending: false }),
+    supabase.from('sales_commissions').select('id,created_at,amount,status,source_order_id').eq('beneficiary_id', uid).order('created_at', { ascending: false }),
+    supabase.rpc('get_my_referrals')
+  ]);
+
+  setProfile(p || null);
+  setProduct(prod || null);
+  setOrders(o || []);
+  setCommissions(c || []);
+  setReferrals(refs || []);
+
+  if (p?.role === 'admin') {
+    const { data: all } = await supabase
+      .from('orders')
+      .select('id,created_at,status,amount,retail_verified,buyer_id,razorpay_payment_id')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    setAdminOrders(all || []);
   }
-  async function authSubmit(e){
+}
+    
+  
+async function authSubmit(e){
     e.preventDefault(); setBusy(true); setMessage('');
     try{
       if(mode==='signup'){
