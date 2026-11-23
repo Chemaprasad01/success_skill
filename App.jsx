@@ -73,6 +73,23 @@ async function load() {
     setOrders(o || []);
     setCommissions(c || []);
     setReferrals(refs || []);
+    const { data: walletData, error: walletError } = await supabase
+  .from('wallet_ledger')
+  .select('id, member_id, commission_event_id, wallet_type, amount_paise, created_at')
+  .eq('member_id', uid)
+  .order('created_at', { ascending: false });
+
+if (walletError) throw walletError;
+setWalletTransactions(walletData || []);
+
+const { data: upgradeData, error: upgradeError } = await supabase
+  .from('rank_upgrades')
+  .select('id, customer_id, previous_rank, new_rank, amount_paise, status, verified_at, created_at')
+  .eq('customer_id', uid)
+  .order('created_at', { ascending: false });
+
+if (upgradeError) throw upgradeError;
+setRankUpgrades(upgradeData || []); 
 
     if (p.role === 'admin') {
       const { data: all, error: adminError } =
