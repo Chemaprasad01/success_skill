@@ -142,7 +142,7 @@ async function authSubmit(e){
     try{
       const loaded=await loadRazorpay();
       if(!loaded) throw new Error('Could not load Razorpay Checkout. Check your internet connection and retry.');
-      const {data:orderData,error}=await supabase.functions.invoke('create-razorpay-order');
+      const {data:orderData,error}=await supabase.functions.invoke('create_razorpay_order');
       if(error) throw error;
       if(!orderData?.order_id || !orderData?.key_id || !orderData?.local_order_id) throw new Error(orderData?.error || 'Could not create payment order.');
       const checkout=new window.Razorpay({
