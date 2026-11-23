@@ -165,8 +165,8 @@ async function authSubmit(e){
     try{
       const {data,error} = await supabase.functions.invoke('download-ebook');
       if(error) throw error;
-      if(!data?.url) throw new Error(data?.error || 'Download is not available yet.');
-      window.open(data.url,'_blank','noopener,noreferrer');
+      if(!data?.download_url) throw new Error(data?.error || 'Download is not available yet.')
+      window.open(data.download_url,'_blank','noopener,noreferrer'); 
     }catch(e){setMessage(e.message || 'Download failed.')}
     finally{setBusy(false)}
   }
