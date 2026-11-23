@@ -44,8 +44,7 @@ async function load() {
       { data: p, error: profileError },
       { data: o, error: ordersError },
       { data: c, error: commissionError },
-      { data: refs, error: referralError },
-{ data: prod, error: productError }
+      { data: refs, error: referralError }
     ] = await Promise.all([
       supabase.from('profiles')
         .select('*')
@@ -64,20 +63,12 @@ async function load() {
 
       supabase.rpc('get_my_referrals'),
 
-supabase.from('products')
-  .select('*')
-  .eq('active', true)
-  .limit(1)
-  .maybeSingle() 
     ]);
 
     if (profileError) throw profileError;
     if (ordersError) throw ordersError;
     if (commissionError) throw commissionError;
     if (referralError) throw referralError;
-if (productError) throw productError;
-
-setProduct(prod || null);
 
 setProfile(p); 
     setOrders(o || []);
@@ -147,7 +138,6 @@ async function authSubmit(e){
     });
   }
   async function placeOrder(){
-    if(!product) return setMessage('The admin has not published the eBook product yet.');
     setBusy(true); setMessage('Preparing secure checkout…');
     try{
       const loaded=await loadRazorpay();
