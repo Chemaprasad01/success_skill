@@ -19,6 +19,8 @@ export default function App(){
   const [mode,setMode] = useState('login');
   const [message,setMessage] = useState('');
   const [busy,setBusy] = useState(false);
+  const [walletTransactions, setWalletTransactions] = useState([]);
+  const [rankUpgrades, setRankUpgrades] = useState([]);
 
   useEffect(()=>{
     if(!configured) return;
