@@ -44,7 +44,8 @@ async function load() {
       { data: p, error: profileError },
       { data: o, error: ordersError },
       { data: c, error: commissionError },
-      { data: refs, error: referralError }
+      { data: refs, error: referralError },
+{ data: prod, error: productError }
     ] = await Promise.all([
       supabase.from('profiles')
         .select('*')
@@ -61,15 +62,24 @@ async function load() {
         .eq('referrer_id', uid)
         .order('created_at', { ascending: false }),
 
-      supabase.rpc('get_my_referrals')
+      supabase.rpc('get_my_referrals'),
+
+supabase.from('products')
+  .select('*')
+  .eq('active', true)
+  .limit(1)
+  .maybeSingle() 
     ]);
 
     if (profileError) throw profileError;
     if (ordersError) throw ordersError;
     if (commissionError) throw commissionError;
     if (referralError) throw referralError;
+if (productError) throw productError;
 
-    setProfile(p);
+setProduct(prod || null);
+
+setProfile(p); 
     setOrders(o || []);
     setCommissions(c || []);
     setReferrals(refs || []);
