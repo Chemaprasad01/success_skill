@@ -27,6 +27,7 @@ export default function App(){
     return ()=>subscription.unsubscribe();
   },[]);
   useEffect(()=>{ if(session) load(); else {setProfile(null);setOrders([]);setCommissions([])} },[session])
+
 async function load() {
   try {
     const { data: { user }, error: authError } =
@@ -39,7 +40,6 @@ async function load() {
 
     const [
       { data: p, error: profileError },
-      { data: prod, error: productError },
       { data: o, error: ordersError },
       { data: c, error: commissionError },
       { data: refs, error: referralError }
@@ -49,46 +49,33 @@ async function load() {
         .eq('id', uid)
         .single(),
 
-      supabase.from('products')
-        .select('*')
-        .eq('active', true)
-        .limit(1)
-        .maybeSingle(),
-
-      supabase.from('orders')
-        .select('id,created_at,status,amount,retail_verified,razorpay_payment_id')
-        .eq('buyer_id', uid)
+      supabase.from('course_purchases')
+        .select('id,customer_id,course_name,amount_paise,status,created_at,provider_payment_id')
+        .eq('customer_id', uid)
         .order('created_at', { ascending: false }),
 
-      supabase.from('sales_commissions')
-        .select('id,created_at,amount,status,source_order_id')
-        .eq('beneficiary_id', uid)
+      supabase.from('commission_events')
+        .select('id,referrer_id,customer_id,commission_paise,sequence_number,payout_destination,customer_rank,created_at,source_type')
+        .eq('referrer_id', uid)
         .order('created_at', { ascending: false }),
 
       supabase.rpc('get_my_referrals')
     ]);
 
-    if (profileError) throw new Error(
-      'Profile loading failed: ' + profileError.message
-    );
-
-    if (productError) throw productError;
+    if (profileError) throw profileError;
     if (ordersError) throw ordersError;
     if (commissionError) throw commissionError;
     if (referralError) throw referralError;
 
-    console.log('SUCCESS SKILL PROFILE:', p);
-
     setProfile(p);
-    setProduct(prod || null);
     setOrders(o || []);
     setCommissions(c || []);
     setReferrals(refs || []);
 
     if (p.role === 'admin') {
       const { data: all, error: adminError } =
-        await supabase.from('orders')
-          .select('id,created_at,status,amount,retail_verified,buyer_id,razorpay_payment_id')
+        await supabase.from('course_purchases')
+          .select('id,customer_id,course_name,amount_paise,status,created_at,provider_payment_id')
           .order('created_at', { ascending: false })
           .limit(100);
 
@@ -100,13 +87,14 @@ async function load() {
     }
 
     setMessage('');
+
   } catch (error) {
     console.error('Dashboard loading error:', error);
     setMessage(error.message || 'Dashboard loading failed.');
   }
 }
 
-  
+
 async function authSubmit(e){
     e.preventDefault(); setBusy(true); setMessage('');
     try{
@@ -178,7 +166,11 @@ async function authSubmit(e){
     await load();
   }
   async function signOut(){await supabase.auth.signOut();setMessage('Signed out.')}
-  const totalCommission = commissions.reduce((s,c)=>s+Number(c.amount||0),0);
+  const totalCommission = commissions.reduce(
+  (s, c) => s + Number(c.commission_paise || 0),
+  0
+) / 100;
+  
   if(!configured) return <main className="shell"><header><div className="brand">SUCCESS <b>SKILL</b></div><span className="tag">SETUP REQUIRED</span></header><section className="hero"><p className="eyebrow">DIGITAL LEARNING PLATFORM</p><h1>Build skills.<br/><em>Grow with purpose.</em></h1><p>Connect your Supabase project to activate customer accounts, orders and the admin dashboard.</p></section><section className="panel"><h2>Connect Supabase</h2><ol><li>Create a Supabase project.</li><li>Copy <b>.env.example</b> to <b>.env</b>.</li><li>Add your Project URL and anon key.</li><li>Run the SQL setup in <b>supabase/schema.sql</b>.</li></ol><p className="muted">Never put your Supabase service-role key in this frontend.</p></section><footer>SUCCESS SKILL · Starter website</footer></main>;
   return <main className="shell">
     <header><div className="brand">SUCCESS <b>SKILL</b></div>{session?<button className="outline" onClick={signOut}>Sign out</button>:<span className="tag">EBOOK PLATFORM</span>}</header>
@@ -248,10 +240,33 @@ async function authSubmit(e){
   })}
 </section> 
       <article className="stat"><small>Verified commissions</small><strong>{money(totalCommission)}</strong></article><article className="stat"><small>My orders</small><strong>{orders.length}</strong></article><article className="stat"><small>Current rank</small><strong className="ranktext">{profile?.rank || 'Not Activated'}</strong></article></div>
-      <section className="panel"><div className="sectionhead"><div><p className="eyebrow">DIGITAL PRODUCT</p><h2>{product?.title || 'Your eBook'}</h2></div><span className="price">₹600</span></div><p className="muted">{product?.description || 'The same eBook is offered to every customer.'}</p><div className="actions"><button className="primary" onClick={placeOrder} disabled={busy||!product}>{busy?'Please wait…':'Buy eBook · ₹600'}</button><button className="outline dark" onClick={downloadBook} disabled={busy}>Download purchased eBook</button></div><p className="tiny muted">Secure Razorpay checkout. Your eBook unlocks only after the server verifies a captured ₹600 payment. Do not close the page until checkout responds.</p></section>
+      <section className="panel">
+  <div className="sectionhead">
+    <div>
+      <p className="eyebrow">DIGITAL PRODUCT</p>
+      <h2>SUCCESS SKILL eBook</h2>
+    </div>
+    <span className="price">₹600</span>
+  </div>
+
+  <p className="muted">
+    Learn, apply and grow with the SUCCESS SKILL digital learning program.
+  </p>
+
+  <div className="actions">
+    <button className="primary" onClick={placeOrder} disabled={busy}>
+      Buy eBook · ₹600
+    </button>
+
+    <button className="outline dark" onClick={downloadBook} disabled={busy}>
+      Download purchased eBook
+    </button>
+  </div>
+</section>
       <section className="panel"><h2>Rank pathway</h2><div className="rankpath">{ranks.map((r,i)=><div className={'rankstep '+(r===profile?.rank?'current':'')} key={r}><span>{String(i+1).padStart(2,'0')}</span><b>{r}</b></div>)}</div><p className="tiny muted">Ranks must be assigned using approved, documented genuine retail-sales criteria. Recruitment counts and paid rank upgrades are not used.</p></section>
-      <section className="panel"><h2>My orders</h2><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th><th>Retail verified</th></tr></thead><tbody>{orders.length?orders.map(o=><tr key={o.id}><td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td><td>{money(o.amount)}</td><td><span className={'status '+o.status}>{o.status}</span></td><td>{o.retail_verified?'Yes':'Pending'}</td></tr>):<tr><td colSpan="4" className="muted">No orders yet.</td></tr>}</tbody></table></div></section>
-      <section className="panel"><h2>Commission history</h2><p className="tiny muted">Commissions are calculated only on administrator-verified qualifying retail sales under a legally reviewed plan.</p><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{commissions.length?commissions.map(c=><tr key={c.id}><td>{new Date(c.created_at).toLocaleDateString('en-IN')}</td><td>{money(c.amount)}</td><td>{c.status}</td></tr>):<tr><td colSpan="3" className="muted">No commissions recorded.</td></tr>}</tbody></table></div></section>
+      <section className="panel"><h2>My orders</h2><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th><th>Retail verified</th></tr></thead><tbody>{orders.length?orders.map(o=><tr key={o.id}><td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(o.amount_paise || 0) / 100)}</td><td><span className={'status '+o.status}>{o.status}</span></td><td>{o.retail_verified?'Yes':'Pending'}</td></tr>):<tr><td colSpan="4" className="muted">No orders yet.</td></tr>}</tbody></table></div></section>
+      <section className="panel"><h2>Commission history</h2><p className="tiny muted">Commissions are calculated only on administrator-verified qualifying retail sales under a legally reviewed plan.</p><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{commissions.length?commissions.map(c=><tr key={c.id}><td>{new Date(c.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(c.commission_paise || 0) / 100)}</td>
+<td>{c.payout_destination}</td></tr>):<tr><td colSpan="3" className="muted">No commissions recorded.</td></tr>}</tbody></table></div></section>
       {profile?.role==='admin'&&<section className="panel admin"><p className="eyebrow">ADMIN CONTROL</p><h2>Order verification</h2><p className="tiny muted">Check payment proof and confirm that each order is a genuine retail sale before approving it.</p><div className="tablewrap"><table><thead><tr><th>Order</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>{adminOrders.length?adminOrders.map(o=><tr key={o.id}><td>{o.profiles?.full_name||o.buyer_id.slice(0,8)}</td><td>{money(o.amount)}</td><td>{o.status}</td><td><div className="actions"><button className="mini" disabled={busy||o.status==='paid'} onClick={()=>updateOrder(o.id,'paid',true)}>Verify retail sale</button><button className="mini danger" disabled={busy||o.status==='rejected'} onClick={()=>updateOrder(o.id,'rejected',false)}>Reject</button></div></td></tr>):<tr><td colSpan="4" className="muted">No orders.</td></tr>}</tbody></table></div></section>}
     </>}
     <section className="legal"><b>Important:</b> SUCCESS SKILL must sell a genuine eBook at a fair, disclosed price. Referral rewards, if offered, must be tied to verified retail sales and a compensation plan reviewed for compliance with Indian law. No payment is made merely for recruitment, joining, or upgrading a rank.</section>
