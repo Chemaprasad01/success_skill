@@ -138,6 +138,12 @@ async function authSubmit(e){
     });
   }
   async function placeOrder(){
+    if (orders.some(
+  o => String(o.status || '').toLowerCase() === 'verified'
+)) {
+  setMessage('You have already purchased the eBook. Another purchase is not allowed.');
+  return;
+    }
     setBusy(true); setMessage('Preparing secure checkout…');
     try{
       const loaded=await loadRazorpay();
@@ -189,6 +195,22 @@ async function authSubmit(e){
   (s, c) => s + Number(c.commission_paise || 0),
   0
 ) / 100;
+  const hasVerifiedPurchase = orders.some(
+  o => String(o.status || '').toLowerCase() === 'verified'
+);
+
+const rankPriority = {
+  Platinum: 1,
+  Silver: 2,
+  Gold: 3,
+  Diamond: 4,
+  Crown: 5
+};
+
+const isPlatinumOrHigher =
+  (rankPriority[profile?.rank] || 0) >= rankPriority.Platinum;
+
+const hideBuyButton = hasVerifiedPurchase;
   
   if(!configured) return <main className="shell"><header><div className="brand">SUCCESS <b>SKILL</b></div><span className="tag">SETUP REQUIRED</span></header><section className="hero"><p className="eyebrow">DIGITAL LEARNING PLATFORM</p><h1>Build skills.<br/><em>Grow with purpose.</em></h1><p>Connect your Supabase project to activate customer accounts, orders and the admin dashboard.</p></section><section className="panel"><h2>Connect Supabase</h2><ol><li>Create a Supabase project.</li><li>Copy <b>.env.example</b> to <b>.env</b>.</li><li>Add your Project URL and anon key.</li><li>Run the SQL setup in <b>supabase/schema.sql</b>.</li></ol><p className="muted">Never put your Supabase service-role key in this frontend.</p></section><footer>SUCCESS SKILL · Starter website</footer></main>;
   return <main className="shell">
@@ -273,14 +295,30 @@ async function authSubmit(e){
   </p>
 
   <div className="actions">
-    <button className="primary" onClick={placeOrder} disabled={busy}>
+  {!hideBuyButton ? (
+    <button
+      className="primary"
+      onClick={placeOrder}
+      disabled={busy}
+    >
       Buy eBook · ₹600
     </button>
+  ) : (
+    <div className="notice">
+      {isPlatinumOrHigher
+        ? '✓ eBook purchased. Your membership is activated.'
+        : 'Payment verified. Your rank activation is being processed.'}
+    </div>
+  )}
 
-    <button className="outline dark" onClick={downloadBook} disabled={busy}>
-      Download purchased eBook
-    </button>
-  </div>
+  <button
+    className="outline dark"
+    onClick={downloadBook}
+    disabled={busy}
+  >
+    Download purchased eBook
+  </button>
+</div>
 </section>
       <section className="panel"><h2>Rank pathway</h2><div className="rankpath">{ranks.map((r,i)=><div className={'rankstep '+(r===profile?.rank?'current':'')} key={r}><span>{String(i+1).padStart(2,'0')}</span><b>{r}</b></div>)}</div><p className="tiny muted">Ranks must be assigned using approved, documented genuine retail-sales criteria. Recruitment counts and paid rank upgrades are not used.</p></section>
       <section className="panel"><h2>My orders</h2><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th><th>Retail verified</th></tr></thead><tbody>{orders.length?orders.map(o=><tr key={o.id}><td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(o.amount_paise || 0) / 100)}</td><td><span className={'status '+o.status}>{o.status}</span></td><td>{o.retail_verified?'Yes':'Pending'}</td></tr>):<tr><td colSpan="4" className="muted">No orders yet.</td></tr>}</tbody></table></div></section>
