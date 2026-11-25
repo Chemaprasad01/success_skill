@@ -725,7 +725,35 @@ const hideBuyButton = hasVerifiedPurchase;
       </tbody>
     </table>
   </div>
-      </section><section className="panel admin"><p className="eyebrow">ADMIN CONTROL</p><h2>Order verification</h2><p className="tiny muted">Check payment proof and confirm that each order is a genuine retail sale before approving it.</p><div className="tablewrap"><table><thead><tr><th>Order</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>{adminOrders.length?adminOrders.map(o=><tr key={o.id}><td>{o.profiles?.full_name||o.buyer_id.slice(0,8)}</td><td>{money(o.amount)}</td><td>{o.status}</td><td><div className="actions"><button className="mini" disabled={busy||o.status==='paid'} onClick={()=>updateOrder(o.id,'paid',true)}>Verify retail sale</button><button className="mini danger" disabled={busy||o.status==='rejected'} onClick={()=>updateOrder(o.id,'rejected',false)}>Reject</button></div></td></tr>):<tr><td colSpan="4" className="muted">No orders.</td></tr>}</tbody></table></div></section></>}
+      </section><section className="panel admin"><p className="eyebrow">ADMIN CONTROL</p><h2>Order verification</h2><p className="tiny muted">Check payment proof and confirm that each order is a genuine retail sale before approving it.</p><div className="tablewrap"><table><thead><tr><th>Order</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>{adminOrders.length ? adminOrders.map(o => (
+  <tr key={o.id}>
+    <td>{o.customer_id?.slice(0, 8) || 'Unknown'}</td>
+    <td>{money(Number(o.amount_paise || 0) / 100)}</td>
+    <td>{o.status}</td>
+    <td>
+      <div className="actions">
+        <button
+          className="mini"
+          disabled={busy}
+          onClick={() => updateOrder(o.id, 'paid', true)}
+        >
+          Verify retail sale
+        </button>
+        <button
+          className="mini danger"
+          disabled={busy}
+          onClick={() => updateOrder(o.id, 'rejected', false)}
+        >
+          Reject
+        </button>
+      </div>
+    </td>
+  </tr>
+)) : (
+  <tr>
+    <td colSpan="4" className="muted">No orders.</td>
+  </tr>
+)}:<tr><td colSpan="4" className="muted">No orders.</td></tr>}</tbody></table></div></section></>}
     </>}
     <section className="legal"><b>Important:</b> SUCCESS SKILL must sell a genuine eBook at a fair, disclosed price. Referral rewards, if offered, must be tied to verified retail sales and a compensation plan reviewed for compliance with Indian law. No payment is made merely for recruitment, joining, or upgrading a rank.</section>
     <footer>© {new Date().getFullYear()} SUCCESS SKILL · Built for learning and genuine product sales</footer>
