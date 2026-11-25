@@ -417,7 +417,31 @@ const hideBuyButton = hasVerifiedPurchase;
         <button className="primary" disabled={busy}>{busy?'Please wait…':mode==='login'?'Login':'Create account'}</button>
       </form>
       <p className="muted tiny">Use a valid email. Your account may require email confirmation depending on Supabase settings.</p>
-    </section> : <><section className="welcome"><div><p className="eyebrow">MEMBER DASHBOARD</p><h2>Hello, {profile?.full_name || session.user.email}</h2><p className="muted">Referral code: <b>{profile?.referral_code || 'Preparing…'}</b></p></div><span className="rank">{profile?.rank || 'Not Activated'}</span></section>
+    </section> : <><section className="welcome"><div><p className="eyebrow">MEMBER DASHBOARD</p><h2>Hello, {profile?.full_name || session.user.email}</h2><p className="muted">
+  Referral code: <b>{profile?.referral_code || 'Preparing…'}</b>
+</p>
+
+{profile?.referral_code && (
+  <div>
+    <p className="muted">Your personal referral link:</p>
+    <a
+      href={`${window.location.origin}/?ref=${encodeURIComponent(profile.referral_code)}`}
+      target="_blank"
+      rel="noreferrer"
+    >
+      {window.location.origin}/?ref={profile.referral_code}
+    </a>
+    <button
+      className="outline"
+      onClick={() => navigator.clipboard.writeText(
+        `${window.location.origin}/?ref=${encodeURIComponent(profile.referral_code)}`
+      ).then(() => setMessage('Referral link copied!'))
+       .catch(() => setMessage('Unable to copy. Please copy the link manually.'))}
+    >
+      Copy referral link
+    </button>
+  </div>
+)}</div><span className="rank">{profile?.rank || 'Not Activated'}</span></section>
       <div className="stats">
 <section className="panel">
   <p className="eyebrow">MY NETWORK</p>
