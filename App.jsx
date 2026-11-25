@@ -324,7 +324,97 @@ const hideBuyButton = hasVerifiedPurchase;
       <section className="panel"><h2>My orders</h2><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th><th>Retail verified</th></tr></thead><tbody>{orders.length?orders.map(o=><tr key={o.id}><td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(o.amount_paise || 0) / 100)}</td><td><span className={'status '+o.status}>{o.status}</span></td><td>{o.retail_verified?'Yes':'Pending'}</td></tr>):<tr><td colSpan="4" className="muted">No orders yet.</td></tr>}</tbody></table></div></section>
       <section className="panel"><h2>Commission history</h2><p className="tiny muted">Commissions are calculated only on administrator-verified qualifying retail sales under a legally reviewed plan.</p><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{commissions.length?commissions.map(c=><tr key={c.id}><td>{new Date(c.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(c.commission_paise || 0) / 100)}</td>
 <td>{c.payout_destination}</td></tr>):<tr><td colSpan="3" className="muted">No commissions recorded.</td></tr>}</tbody></table></div></section>
-      {profile?.role==='admin'&&<section className="panel admin"><p className="eyebrow">ADMIN CONTROL</p><h2>Order verification</h2><p className="tiny muted">Check payment proof and confirm that each order is a genuine retail sale before approving it.</p><div className="tablewrap"><table><thead><tr><th>Order</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>{adminOrders.length?adminOrders.map(o=><tr key={o.id}><td>{o.profiles?.full_name||o.buyer_id.slice(0,8)}</td><td>{money(o.amount)}</td><td>{o.status}</td><td><div className="actions"><button className="mini" disabled={busy||o.status==='paid'} onClick={()=>updateOrder(o.id,'paid',true)}>Verify retail sale</button><button className="mini danger" disabled={busy||o.status==='rejected'} onClick={()=>updateOrder(o.id,'rejected',false)}>Reject</button></div></td></tr>):<tr><td colSpan="4" className="muted">No orders.</td></tr>}</tbody></table></div></section>}
+      {profile?.role==='admin'&&<section className="panel admin"><section className="panel admin">
+  <p className="eyebrow">ADMIN CONTROL</p>
+  <h2>Withdrawal management</h2>
+
+  <div className="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>Amount</th>
+          <th>Method / Details</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {adminWithdrawals.length ? adminWithdrawals.map(w => (
+          <tr key={w.id}>
+            <td>{w.member_id.slice(0, 8)}</td>
+            <td>{money(Number(w.amount_paise) / 100)}</td>
+            <td>
+              {w.payout_method === 'upi' ? (
+                <div>UPI: {w.payout_details?.upi_id}</div>
+              ) : (
+                <div>
+                  <div>{w.payout_details?.account_holder}</div>
+                  <div>Account: {w.payout_details?.account_number}</div>
+                  <div>IFSC: {w.payout_details?.ifsc}</div>
+                </div>
+              )}
+            </td><td>{w.status.toUpperCase()}</td>
+            <td>
+              {w.status === 'pending' && (
+                <div className="actions">
+                  <button
+                    className="mini"
+                    disabled={busy}
+                    onClick={() => reviewWithdrawal(w.id, 'approved')}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    className="mini danger"
+                    disabled={busy}
+                    onClick={() => reviewWithdrawal(w.id, 'rejected')}
+                  >
+                    Reject
+                  </button>
+                </div>
+              )}
+
+              {w.status === 'approved' && (
+                <div>
+                  <input
+                    placeholder="Enter UTR / reference"
+                    value={payoutReferences[w.id] || ''}
+                    onChange={e => setPayoutReferences(previous => ({
+                      ...previous,
+                      [w.id]: e.target.value
+                    }))}
+                  />
+                  <button
+                    className="mini"
+                    disabled={busy}
+                    onClick={() => completeWithdrawal(w.id)}
+                  >
+                    Mark as paid
+                  </button>
+                </div>
+              )}
+
+              {w.status === 'paid' && (
+                <span>Payment completed</span>
+              )}
+
+              {w.status === 'rejected' && (
+                <span>Request rejected</span>
+              )}
+            </td>
+          </tr>
+        )) : (
+          <tr>
+            <td colSpan="5" className="muted">
+              No withdrawal requests.
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</section><p className="eyebrow">ADMIN CONTROL</p><h2>Order verification</h2><p className="tiny muted">Check payment proof and confirm that each order is a genuine retail sale before approving it.</p><div className="tablewrap"><table><thead><tr><th>Order</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>{adminOrders.length?adminOrders.map(o=><tr key={o.id}><td>{o.profiles?.full_name||o.buyer_id.slice(0,8)}</td><td>{money(o.amount)}</td><td>{o.status}</td><td><div className="actions"><button className="mini" disabled={busy||o.status==='paid'} onClick={()=>updateOrder(o.id,'paid',true)}>Verify retail sale</button><button className="mini danger" disabled={busy||o.status==='rejected'} onClick={()=>updateOrder(o.id,'rejected',false)}>Reject</button></div></td></tr>):<tr><td colSpan="4" className="muted">No orders.</td></tr>}</tbody></table></div></section>}
     </>}
     <section className="legal"><b>Important:</b> SUCCESS SKILL must sell a genuine eBook at a fair, disclosed price. Referral rewards, if offered, must be tied to verified retail sales and a compensation plan reviewed for compliance with Indian law. No payment is made merely for recruitment, joining, or upgrading a rank.</section>
     <footer>© {new Date().getFullYear()} SUCCESS SKILL · Built for learning and genuine product sales</footer>
