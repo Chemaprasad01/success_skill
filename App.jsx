@@ -63,7 +63,7 @@ async function load() {
         .single(),
 
       supabase.from('course_purchases')
-        .select('id,customer_id,course_name,amount_paise,status,created_at,provider_payment_id')
+        .select('id,customer_id,course_name,amount_paise,status,retail_status,created_at,provider_payment_id')
         .eq('customer_id', uid)
         .order('created_at', { ascending: false }),
 
@@ -138,7 +138,7 @@ if (p.role === 'admin') {
     if (p.role === 'admin') {
       const { data: all, error: adminError } =
         await supabase.from('course_purchases')
-          .select('id,customer_id,course_name,amount_paise,status,created_at,provider_payment_id')
+          .select('id,customer_id,course_name,amount_paise,status,retail_status,created_at,provider_payment_id')
           .order('created_at', { ascending: false })
           .limit(100);
 
