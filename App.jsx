@@ -745,11 +745,12 @@ const hideBuyButton = hasVerifiedPurchase;
       </tbody>
     </table>
   </div>
-      </section><section className="panel admin"><p className="eyebrow">ADMIN CONTROL</p><h2>Order verification</h2><p className="tiny muted">Check payment proof and confirm that each order is a genuine retail sale before approving it.</p><div className="tablewrap"><table><thead><tr><th>Order</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>{adminOrders.length ? adminOrders.map(o => (
+      </section><section className="panel admin"><p className="eyebrow">ADMIN CONTROL</p><h2>Order verification</h2><p className="tiny muted">Check payment proof and confirm that each order is a genuine retail sale before approving it.</p><div className="tablewrap"><table><thead><tr><th>Order</th><th>Amount</th><th>Payment Status</th><th>Retail Status</th><th>Action</th></tr></thead><tbody>{adminOrders.length ? adminOrders.map(o => (
   <tr key={o.id}>
     <td>{o.customer_id?.slice(0, 8) || 'Unknown'}</td>
     <td>{money(Number(o.amount_paise || 0) / 100)}</td>
     <td>{o.status}</td>
+<td>{o.retail_status || 'pending'}</td> 
     <td>
       <div className="actions">
   <button
@@ -772,9 +773,9 @@ const hideBuyButton = hasVerifiedPurchase;
 </tr>
 )) : (
   <tr>
-    <td colSpan="4" className="muted">No orders.</td>
+    <td colSpan="5" className="muted">No orders.</td>
   </tr>
-)}:<tr><td colSpan="4" className="muted">No orders.</td></tr>}</tbody></table></div></section></>}
+)}:<tr><td colSpan="5" className="muted">No orders.</td></tr>}</tbody></table></div></section></>}
     </>}
     <section className="legal"><b>Important:</b> SUCCESS SKILL must sell a genuine eBook at a fair, disclosed price. Referral rewards, if offered, must be tied to verified retail sales and a compensation plan reviewed for compliance with Indian law. No payment is made merely for recruitment, joining, or upgrading a rank.</section>
     <footer>© {new Date().getFullYear()} SUCCESS SKILL · Built for learning and genuine product sales</footer>
