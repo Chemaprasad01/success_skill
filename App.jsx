@@ -21,6 +21,17 @@ export default function App(){
   const [busy,setBusy] = useState(false);
   const [walletTransactions, setWalletTransactions] = useState([]);
   const [rankUpgrades, setRankUpgrades] = useState([]);
+const [withdrawals, setWithdrawals] = useState([]);
+const [withdrawalDebits, setWithdrawalDebits] = useState([]);
+const [adminWithdrawals, setAdminWithdrawals] = useState([]);
+const [withdrawAmount, setWithdrawAmount] = useState('');
+const [payoutMethod, setPayoutMethod] = useState('upi');
+const [upiId, setUpiId] = useState('');
+const [accountHolder, setAccountHolder] = useState('');
+const [accountNumber, setAccountNumber] = useState('');
+const [ifsc, setIfsc] = useState('');
+const [payoutReferences, setPayoutReferences] = useState({});
+
 
   useEffect(()=>{
     if(!configured) return;
@@ -91,6 +102,38 @@ const { data: upgradeData, error: upgradeError } = await supabase
 
 if (upgradeError) throw upgradeError;
 setRankUpgrades(upgradeData || []); 
+    
+const { data: withdrawalData, error: withdrawalError } = await supabase
+  .from('withdrawal_requests')
+  .select('id, amount_paise, payout_method, status, admin_note, created_at, reviewed_at, paid_at')
+  .eq('member_id', uid)
+  .order('created_at', { ascending: false });
+
+if (withdrawalError) throw withdrawalError;
+setWithdrawals(withdrawalData || []);
+
+const { data: debitData, error: debitError } = await supabase
+  .from('withdrawal_debits')
+  .select('id, withdrawal_request_id, amount_paise, paid_at')
+  .eq('member_id', uid);
+
+if (debitError) throw debitError;
+setWithdrawalDebits(debitData || []);
+
+if (p.role === 'admin') {
+  const { data: allWithdrawals, error: allWithdrawalError } =
+    await supabase
+      .from('withdrawal_requests')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+  if (allWithdrawalError) throw allWithdrawalError;
+  setAdminWithdrawals(allWithdrawals || []);
+} else {
+  setAdminWithdrawals([]);
+}
+
 
     if (p.role === 'admin') {
       const { data: all, error: adminError } =
@@ -190,6 +233,138 @@ async function authSubmit(e){
     setMessage(error ? error.message : 'Order updated.');
     await load();
   }
+  
+const mainWalletCredits = walletTransactions
+  .filter(t => t.wallet_type === 'withdrawable')
+  .reduce((sum, t) => sum + Number(t.amount_paise || 0), 0);
+
+const paidWithdrawals = withdrawalDebits
+  .reduce((sum, d) => sum + Number(d.amount_paise || 0), 0);
+
+const reservedWithdrawals = withdrawals
+  .filter(w => ['pending', 'approved'].includes(w.status))
+  .reduce((sum, w) => sum + Number(w.amount_paise || 0), 0);
+
+const mainWalletAvailable = Math.max(
+  0,
+  mainWalletCredits - paidWithdrawals - reservedWithdrawals
+);
+
+const rankUpgradeCredits = walletTransactions
+  .filter(t => t.wallet_type === 'self_upgrade')
+  .reduce((sum, t) => sum + Number(t.amount_paise || 0), 0);
+
+async function submitWithdrawal(e) {
+  e.preventDefault();
+  setBusy(true);
+  setMessage('');
+
+  try {
+    const amountPaise = Math.round(Number(withdrawAmount) * 100);
+
+    if (!Number.isSafeInteger(amountPaise) || amountPaise <= 0) {
+      throw new Error('Enter a valid withdrawal amount.');
+    }
+
+    if (amountPaise > mainWalletAvailable) {
+      throw new Error('Insufficient available Main Wallet balance.');
+    }
+
+    let details = {};
+
+    if (payoutMethod === 'upi') {
+      if (!upiId.trim()) throw new Error('Enter your UPI ID.');
+      details = { upi_id: upiId.trim() };
+    } else {
+      if (!accountHolder.trim() || !accountNumber.trim() || !ifsc.trim()) {
+        throw new Error('Complete all bank details.');
+      }
+
+      details = {
+        account_holder: accountHolder.trim(),
+        account_number: accountNumber.trim(),
+        ifsc: ifsc.trim().toUpperCase()
+      };
+    }
+
+    const { error } = await supabase.rpc('request_withdrawal', {
+      p_amount_paise: amountPaise,
+      p_payout_method: payoutMethod,
+      p_payout_details: details
+    });
+
+    if (error) throw error;
+
+    setWithdrawAmount('');
+    setUpiId('');
+    setAccountHolder('');
+    setAccountNumber('');
+    setIfsc('');
+    setMessage('Withdrawal request submitted successfully.');
+    await load();
+  } catch (error) {
+    setMessage(error.message || 'Could not submit withdrawal request.');
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function reviewWithdrawal(id, decision) {
+  setBusy(true);
+  setMessage('');
+
+  try {
+    const { error } = await supabase.rpc('admin_review_withdrawal', {
+      p_request_id: id,
+      p_decision: decision,
+      p_admin_note: decision === 'rejected'
+        ? 'Withdrawal request rejected by admin.'
+        : 'Withdrawal request approved.'
+    });
+
+    if (error) throw error;
+
+    setMessage(`Withdrawal ${decision} successfully.`);
+    await load();
+  } catch (error) {
+    setMessage(error.message || 'Could not review withdrawal.');
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function completeWithdrawal(id) {
+  setBusy(true);
+  setMessage('');
+
+  try {
+    const reference = String(payoutReferences[id] || '').trim();
+
+    if (!reference) {
+      throw new Error('Enter the UTR or payout reference.');
+    }
+
+    const { error } = await supabase.rpc('admin_complete_withdrawal', {
+      p_request_id: id,
+      p_payout_reference: reference
+    });
+
+    if (error) throw error;
+
+    setPayoutReferences(previous => ({
+      ...previous,
+      [id]: ''
+    }));
+
+    setMessage('Withdrawal marked as paid successfully.');
+    await load();
+  } catch (error) {
+    setMessage(error.message || 'Could not complete payout.');
+  } finally {
+    setBusy(false);
+  }
+}
+
   async function signOut(){await supabase.auth.signOut();setMessage('Signed out.')}
   const totalCommission = commissions.reduce(
   (s, c) => s + Number(c.commission_paise || 0),
@@ -281,6 +456,143 @@ const hideBuyButton = hasVerifiedPurchase;
   })}
 </section> 
       <article className="stat"><small>Verified commissions</small><strong>{money(totalCommission)}</strong></article><article className="stat"><small>My orders</small><strong>{orders.length}</strong></article><article className="stat"><small>Current rank</small><strong className="ranktext">{profile?.rank || 'Not Activated'}</strong></article></div>
+     
+<section className="panel">
+  <p className="eyebrow">MY WALLETS</p>
+  <h2>Wallet balances</h2>
+
+  <div className="stats">
+    <article className="stat">
+      <small>Main Wallet · Withdrawable</small>
+      <strong>{money(mainWalletAvailable / 100)}</strong>
+    </article>
+
+    <article className="stat">
+      <small>Rank Upgrade Credit · Not withdrawable</small>
+      <strong>{money(rankUpgradeCredits / 100)}</strong>
+    </article>
+  </div>
+
+  <p className="tiny muted">
+    Pending and approved withdrawals are reserved from your Main Wallet.
+    Rank Upgrade Credit cannot be withdrawn.
+  </p>
+</section>
+
+<section className="panel">
+  <p className="eyebrow">PAYOUT</p>
+  <h2>Request withdrawal</h2>
+
+  <form onSubmit={submitWithdrawal}>
+    <label>
+      Amount (₹)
+      <input
+        type="number"
+        min="1"
+        step="0.01"
+        required
+        value={withdrawAmount}
+        onChange={e => setWithdrawAmount(e.target.value)}
+        placeholder="Enter amount"
+      />
+    </label>
+
+    <label>
+      Payout method
+      <select
+        value={payoutMethod}
+        onChange={e => setPayoutMethod(e.target.value)}
+      >
+        <option value="upi">UPI</option>
+        <option value="bank">Bank transfer</option>
+      </select>
+    </label>
+
+    {payoutMethod === 'upi' ? (
+      <label>
+        UPI ID
+        <input
+          required
+          value={upiId}
+          onChange={e => setUpiId(e.target.value)}
+          placeholder="example@upi"
+        />
+      </label>
+    ) : (
+      <>
+        <label>
+          Account holder name
+          <input
+            required
+            value={accountHolder}
+            onChange={e => setAccountHolder(e.target.value)}
+          />
+        </label>
+
+        <label>
+          Account number
+          <input
+            required
+            value={accountNumber}
+            onChange={e => setAccountNumber(e.target.value)}
+          />
+        </label>
+
+        <label>
+          IFSC code
+          <input
+            required
+            value={ifsc}
+            onChange={e => setIfsc(e.target.value)}
+            placeholder="Example: SBIN0001234"
+          />
+        </label>
+      </>
+    )}
+
+    <button
+      className="primary"
+      type="submit"
+      disabled={busy || mainWalletAvailable <= 0}
+    >
+      {busy ? 'Please wait…' : 'Submit withdrawal request'}
+    </button>
+  </form>
+</section>
+
+<section className="panel">
+  <h2>My withdrawal history</h2>
+
+  <div className="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Amount</th>
+          <th>Method</th>
+          <th>Status</th>
+          <th>Admin note</th>
+        </tr>
+      </thead>
+      <tbody>
+        {withdrawals.length ? withdrawals.map(w => (
+          <tr key={w.id}>
+            <td>{new Date(w.created_at).toLocaleDateString('en-IN')}</td>
+            <td>{money(Number(w.amount_paise) / 100)}</td>
+            <td>{w.payout_method.toUpperCase()}</td>
+            <td>{w.status.toUpperCase()}</td>
+            <td>{w.admin_note || '—'}</td>
+          </tr>
+        )) : (
+          <tr>
+            <td colSpan="5" className="muted">No withdrawal requests yet.</td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</section>
+
       <section className="panel">
   <div className="sectionhead">
     <div>
