@@ -226,7 +226,27 @@ async function authSubmit(e){
     }catch(e){setMessage(e.message || 'Download failed.')}
     finally{setBusy(false)}
   }
-  async function updateOrder(id,status,retail_verified){
+  async function updateOrder(id, retailStatus) {
+  setBusy(true);
+  setMessage('');
+
+  try {
+    const { error } = await supabase
+      .from('course_purchases')
+      .update({ retail_status: retailStatus })
+      .eq('id', id)
+      .eq('status', 'verified');
+
+    if (error) throw error;
+
+    setMessage(`Retail sale ${retailStatus} successfully.`);
+    await load();
+  } catch (error) {
+    setMessage(error.message || 'Could not update retail status.');
+  } finally {
+    setBusy(false);
+  }
+  } 
     setBusy(true);
     const {error} = await supabase.from('orders').update({status,retail_verified}).eq('id',id);
     setBusy(false);
@@ -732,23 +752,24 @@ const hideBuyButton = hasVerifiedPurchase;
     <td>{o.status}</td>
     <td>
       <div className="actions">
-        <button
-          className="mini"
-          disabled={busy}
-          onClick={() => updateOrder(o.id, 'paid', true)}
-        >
-          Verify retail sale
-        </button>
-        <button
-          className="mini danger"
-          disabled={busy}
-          onClick={() => updateOrder(o.id, 'rejected', false)}
-        >
-          Reject
-        </button>
-      </div>
-    </td>
-  </tr>
+  <button
+    className="mini"
+    disabled={busy || o.status !== 'verified' || o.retail_status !== 'pending'}
+    onClick={() => updateOrder(o.id, 'verified')}
+  >
+    Verify retail sale
+  </button>
+
+  <button
+    className="mini danger"
+    disabled={busy || o.status !== 'verified' || o.retail_status !== 'pending'}
+    onClick={() => updateOrder(o.id, 'rejected')}
+  >
+    Reject
+  </button>
+</div>
+</td>
+</tr>
 )) : (
   <tr>
     <td colSpan="4" className="muted">No orders.</td>
