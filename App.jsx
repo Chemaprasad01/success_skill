@@ -413,7 +413,7 @@ const hideBuyButton = hasVerifiedPurchase;
         {mode==='signup'&&<label>Full name<input required value={fullName} onChange={e=>setFullName(e.target.value)} autoComplete="name"/></label>}
         <label>Email address<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email"/></label>
         <label>Password<input type="password" minLength="8" required value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==='login'?'current-password':'new-password'}/></label>
-        {mode==='signup'&&<label>Referral code (optional)<input value={referral} onChange={e=>setReferral(e.target.value)} placeholder="Enter referral code"/></label>}
+        {mode==='signup'&&<label>Referral code (required)<input required value={referral} onChange={e=>setReferral(e.target.value)} placeholder="Enter referral code"/></label>}
         <button className="primary" disabled={busy}>{busy?'Please wait…':mode==='login'?'Login':'Create account'}</button>
       </form>
       <p className="muted tiny">Use a valid email. Your account may require email confirmation depending on Supabase settings.</p>
