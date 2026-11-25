@@ -247,13 +247,7 @@ async function authSubmit(e){
     setBusy(false);
   }
   } 
-    setBusy(true);
-    const {error} = await supabase.from('orders').update({status,retail_verified}).eq('id',id);
-    setBusy(false);
-    setMessage(error ? error.message : 'Order updated.');
-    await load();
-  }
-  
+
 const mainWalletCredits = walletTransactions
   .filter(t => t.wallet_type === 'withdrawable')
   .reduce((sum, t) => sum + Number(t.amount_paise || 0), 0);
