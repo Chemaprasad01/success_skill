@@ -646,7 +646,51 @@ const hideBuyButton = hasVerifiedPurchase;
   </button>
 </div>
 </section>
-      <section className="panel"><h2>Rank pathway</h2><div className="rankpath">{ranks.map((r,i)=><div className={'rankstep '+(r===profile?.rank?'current':'')} key={r}><span>{String(i+1).padStart(2,'0')}</span><b>{r}</b></div>)}</div><p className="tiny muted">Ranks must be assigned using approved, documented genuine retail-sales criteria. Recruitment counts and paid rank upgrades are not used.</p></section>
+      
+<section className="panel">
+  <h2>Rank pathway</h2>
+
+  <div className="rankpath">
+    {ranks.map((r, i) => {
+      const required = [600, 900, 1800, 3600, 7500][i] * 100;
+
+      const currentRankIndex = ranks.findIndex(
+        item =>
+          item.toLowerCase() ===
+          String(profile?.rank || '').toLowerCase()
+      );
+
+      const completed = currentRankIndex >= i;
+      const nextRank = i === currentRankIndex + 1;
+
+      const progress = completed
+        ? required
+        : nextRank
+          ? Math.min(rankUpgradeCredits, required)
+          : 0;
+
+      return (
+        <div
+          className={'rankstep ' + (r === profile?.rank ? 'current' : '')}
+          key={r}
+        >
+          <span>{String(i + 1).padStart(2, '0')}</span>
+          <b>{r}</b>
+          <small>
+            {money(progress / 100)} / {money(required / 100)}
+          </small>
+        </div>
+      );
+    })}
+  </div>
+
+  <p className="tiny muted">
+    Rank progress uses Rank Upgrade Credit only.
+    Main Wallet is excluded. Rank advancement requires approved,
+    documented genuine retail-sales criteria and administrator verification.
+  </p>
+</section>
+
       <section className="panel"><h2>My orders</h2><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th><th>Retail verified</th></tr></thead><tbody>{orders.length?orders.map(o=><tr key={o.id}><td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(o.amount_paise || 0) / 100)}</td><td><span className={'status '+o.status}>{o.status}</span></td><td>{o.retail_verified?'Yes':'Pending'}</td></tr>):<tr><td colSpan="4" className="muted">No orders yet.</td></tr>}</tbody></table></div></section>
       <section className="panel"><h2>Commission history</h2><p className="tiny muted">Commissions are calculated only on administrator-verified qualifying retail sales under a legally reviewed plan.</p><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{commissions.length?commissions.map(c=><tr key={c.id}><td>{new Date(c.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(c.commission_paise || 0) / 100)}</td>
 <td>{c.payout_destination}</td></tr>):<tr><td colSpan="3" className="muted">No commissions recorded.</td></tr>}</tbody></table></div></section>
