@@ -448,3 +448,29 @@ header button {
 .referral-analytics .stat small {
   color: #c5b98f;
 } 
+
+/* Premium navigation icons */
+.dashboard-nav a {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  min-width: 25px;
+  height: 25px;
+  border-radius: 7px;
+  background: #29251b;
+  color: #e4c77f;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.dashboard-nav a:hover .nav-icon {
+  background: #51432a;
+  color: #f0d58c;
+}
