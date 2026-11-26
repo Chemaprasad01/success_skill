@@ -258,3 +258,31 @@ footer { color: #777a83; }
 .welcome {
   scroll-margin-top: 90px;
 }
+
+/* Restore visible dashboard header */
+header {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative;
+  z-index: 30;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 65px;
+  width: 100%;
+  padding: 14px 0;
+}
+
+header .brand {
+  display: block !important;
+  visibility: visible !important;
+  color: #f4f0e6 !important;
+}
+
+header button {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative;
+  z-index: 31;
+}
