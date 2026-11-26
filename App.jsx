@@ -196,6 +196,7 @@ async function uploadAvatar(file) {
 
     const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
 
+    console.log('Logged-in user ID:', session.user.id);
     const { error: updateError } = await supabase
       .from('profiles')
       .update({ avatar_url: avatarUrl })
