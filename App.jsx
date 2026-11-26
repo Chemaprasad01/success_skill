@@ -580,28 +580,44 @@ const hideBuyButton = hasVerifiedPurchase;
 </section> 
       <article className="stat"><small>Verified commissions</small><strong>{money(totalCommission)}</strong></article><article className="stat"><small>My orders</small><strong>{orders.length}</strong></article><article className="stat"><small>Current rank</small><strong className="ranktext">{profile?.rank || 'Not Activated'}</strong></article></div>
      
-<section className="panel"
+
+<section className="panel wallet-panel" 
   id="wallets">
   <p className="eyebrow">MY WALLETS</p>
   <h2>Wallet balances</h2>
 
-  <div className="stats">
-    <article className="stat">
-      <small>Main Wallet · Withdrawable</small>
+  <div className="wallet-grid">
+    <article className="wallet-card main-wallet">
+      <div className="wallet-card-top">
+        <span className="wallet-icon">₹</span>
+        <span className="wallet-tag">WITHDRAWABLE</span>
+      </div>
+
+      <small>Main Wallet</small>
       <strong>{money(mainWalletAvailable / 100)}</strong>
+
+      <p>Available balance for eligible withdrawals.</p>
     </article>
 
-    <article className="stat">
-      <small>Rank Upgrade Credit · Not withdrawable</small>
+    <article className="wallet-card rank-wallet">
+      <div className="wallet-card-top">
+        <span className="wallet-icon">★</span>
+        <span className="wallet-tag">RANK CREDIT</span>
+      </div>
+
+      <small>Rank Upgrade Credit</small>
       <strong>{money(rankUpgradeCredits / 100)}</strong>
+
+      <p>Used toward your next eligible rank upgrade. Not withdrawable.</p>
     </article>
   </div>
 
-  <p className="tiny muted">
+  <p className="tiny muted wallet-note">
     Pending and approved withdrawals are reserved from your Main Wallet.
-    Rank Upgrade Credit cannot be withdrawn.
+    Rank Upgrade Credit is separate and cannot be withdrawn.
   </p>
 </section>
+
 
 <section className="panel">
   <p className="eyebrow">PAYOUT</p>
