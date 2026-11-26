@@ -470,6 +470,14 @@ const hideBuyButton = hasVerifiedPurchase;
   
   if(!configured) return <main className="shell"><header><div className="brand">SUCCESS <b>SKILL</b></div><span className="tag">SETUP REQUIRED</span></header><section className="hero"><p className="eyebrow">DIGITAL LEARNING PLATFORM</p><h1>Build skills.<br/><em>Grow with purpose.</em></h1><p>Connect your Supabase project to activate customer accounts, orders and the admin dashboard.</p></section><section className="panel"><h2>Connect Supabase</h2><ol><li>Create a Supabase project.</li><li>Copy <b>.env.example</b> to <b>.env</b>.</li><li>Add your Project URL and anon key.</li><li>Run the SQL setup in <b>supabase/schema.sql</b>.</li></ol><p className="muted">Never put your Supabase service-role key in this frontend.</p></section><footer>SUCCESS SKILL · Starter website</footer></main>;
   return <main className="shell">
+    <header>
+  <div className="brand">SUCCESS <b>SKILL</b></div>
+  {session ? (
+    <button className="primary" onClick={signOut}>Sign out</button>
+  ) : (
+    <span className="tag">EBOOK PLATFORM</span>
+  )}
+</header>
     {session && (
   <nav className="dashboard-nav" aria-label="Dashboard navigation">
     <a href="#overview">Overview</a>
