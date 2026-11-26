@@ -7,6 +7,7 @@ const ranks = ['Platinum','Silver','Gold','Diamond','Crown'];
 export default function App(){
   const [session,setSession] = useState(null);
   const [profile,setProfile] = useState(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
   const [product,setProduct] = useState(null);
   const [orders,setOrders] = useState([]);
   const [commissions,setCommissions] = useState([]);
@@ -159,6 +160,88 @@ if (p.role === 'admin') {
   }
 }
 
+
+async function uploadAvatar(file) {
+  if (!file || !session?.user?.id) return;
+
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    setMessage('Please choose a JPG, PNG or WEBP image.');
+    return;
+  }
+
+  if (file.size > 2 * 1024 * 1024) {
+    setMessage('Photo must be 2 MB or smaller.');
+    return;
+  }
+
+  setAvatarBusy(true);
+  setMessage('');
+
+  try {
+    const path = `${session.user.id}/avatar`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, {
+        upsert: true,
+        contentType: file.type,
+        cacheControl: '3600'
+      });
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(path);
+
+    const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', session.user.id);
+
+    if (updateError) throw updateError;
+
+    setProfile(previous => ({ ...previous, avatar_url: avatarUrl }));
+    setMessage('Profile photo updated successfully.');
+  } catch (error) {
+    setMessage(error.message || 'Could not upload profile photo.');
+  } finally {
+    setAvatarBusy(false);
+  }
+}
+
+async function removeAvatar() {
+  if (!session?.user?.id) return;
+
+  setAvatarBusy(true);
+  setMessage('');
+
+  try {
+    const path = `${session.user.id}/avatar`;
+
+    const { error: storageError } = await supabase.storage
+      .from('avatars')
+      .remove([path]);
+
+    if (storageError) throw storageError;
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ avatar_url: null })
+      .eq('id', session.user.id);
+
+    if (updateError) throw updateError;
+
+    setProfile(previous => ({ ...previous, avatar_url: null }));
+    setMessage('Profile photo removed.');
+  } catch (error) {
+    setMessage(error.message || 'Could not remove profile photo.');
+  } finally {
+    setAvatarBusy(false);
+  }
+}
 
 async function authSubmit(e){
     e.preventDefault(); setBusy(true); setMessage('');
@@ -526,31 +609,97 @@ const hideBuyButton = hasVerifiedPurchase;
         <button className="primary" disabled={busy}>{busy?'Please wait…':mode==='login'?'Login':'Create account'}</button>
       </form>
       <p className="muted tiny">Use a valid email. Your account may require email confirmation depending on Supabase settings.</p>
-    </section> : <><section className="welcome" id="overview"> <div><p className="eyebrow">MEMBER DASHBOARD</p><h2>Hello, {profile?.full_name || session.user.email}</h2><p className="muted">
-  Referral code: <b>{profile?.referral_code || 'Preparing…'}</b>
-</p>
+    </section> : <>
+<section className="welcome profile-welcome" id="overview">
+  <div className="profile-welcome-main">
+    <div className="profile-avatar-area">
+      {profile?.avatar_url ? (
+        <img
+          src={profile.avatar_url}
+          alt="Profile"
+          className="profile-avatar"
+        />
+      ) : (
+        <div className="profile-avatar profile-avatar-placeholder">
+          {(profile?.full_name || session.user.email || 'U')
+            .charAt(0).toUpperCase()}
+        </div>
+      )}
 
-{profile?.referral_code && (
-  <div>
-    <p className="muted">Your personal referral link:</p>
-    <a
-      href={`${window.location.origin}/?ref=${encodeURIComponent(profile.referral_code)}`}
-      target="_blank"
-      rel="noreferrer"
-    >
-      {window.location.origin}/?ref={profile.referral_code}
-    </a>
-    <button
-      className="primary"
-      onClick={() => navigator.clipboard.writeText(
-        `${window.location.origin}/?ref=${encodeURIComponent(profile.referral_code)}`
-      ).then(() => setMessage('Referral link copied!'))
-       .catch(() => setMessage('Unable to copy. Please copy the link manually.'))}
-    >
-      Copy referral link
-    </button>
+      <label className="avatar-upload-button">
+        {avatarBusy
+          ? 'Please wait…'
+          : profile?.avatar_url
+            ? 'Change photo'
+            : 'Upload photo'}
+
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          disabled={avatarBusy}
+          onChange={e => {
+            const file = e.target.files?.[0];
+            if (file) uploadAvatar(file);
+            e.target.value = '';
+          }}
+        />
+      </label>
+
+      {profile?.avatar_url && (
+        <button
+          type="button"
+          className="avatar-remove-button"
+          disabled={avatarBusy}
+          onClick={removeAvatar}
+        >
+          Remove
+        </button>
+      )}
+    </div>
+
+    <div className="profile-welcome-text">
+      <p className="eyebrow">MEMBER DASHBOARD</p>
+      <h2>Hello, {profile?.full_name || session.user.email}</h2>
+
+      <p className="muted">
+        Welcome to your SUCCESS SKILL dashboard.
+      </p>
+
+      <p className="muted">
+        Referral code: <b>{profile?.referral_code || 'Preparing…'}</b>
+      </p>
+
+      {profile?.referral_code && (
+        <div>
+          <p className="muted">Your personal referral link:</p>
+
+          <a
+            href={`${window.location.origin}/?ref=${encodeURIComponent(profile.referral_code)}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {window.location.origin}/?ref={profile.referral_code}
+          </a>
+
+          <button
+            className="primary"
+            onClick={() => navigator.clipboard.writeText(
+              `${window.location.origin}/?ref=${encodeURIComponent(profile.referral_code)}`
+            ).then(() => setMessage('Referral link copied!'))
+             .catch(() => setMessage('Unable to copy. Please copy the link manually.'))}
+          >
+            Copy referral link
+          </button>
+        </div>
+      )}
+    </div>
   </div>
-)}</div><span className="rank">{profile?.rank || 'Not Activated'}</span></section>
+
+  <span className="rank">
+    {profile?.rank || 'Not Activated'}
+  </span>
+</section>
+
       <div className="stats">
 <section className="panel" 
   id="referrals">
