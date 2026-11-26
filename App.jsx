@@ -479,14 +479,39 @@ const hideBuyButton = hasVerifiedPurchase;
   )}
 </header>
     {session && (
-  <nav className="dashboard-nav" aria-label="Dashboard navigation">
-    <a href="#overview">Overview</a>
-    <a href="#wallets">My Wallets</a>
-    <a href="#referrals">My Team</a>
-    <a href="#ranks">Rank Progress</a>
-    <a href="#orders">My Orders</a>
-    <a href="#commissions">Commissions</a>
-  </nav>
+  
+<nav className="dashboard-nav" aria-label="Dashboard navigation">
+  <a href="#overview">
+    <span className="nav-icon" aria-hidden="true">⌂</span>
+    Overview
+  </a>
+
+  <a href="#wallets">
+    <span className="nav-icon" aria-hidden="true">₹</span>
+    My Wallets
+  </a>
+
+  <a href="#referrals">
+    <span className="nav-icon" aria-hidden="true">♧</span>
+    My Team
+  </a>
+
+  <a href="#ranks">
+    <span className="nav-icon" aria-hidden="true">★</span>
+    Rank Progress
+  </a>
+
+  <a href="#orders">
+    <span className="nav-icon" aria-hidden="true">▤</span>
+    My Orders
+  </a>
+
+  <a href="#commissions">
+    <span className="nav-icon" aria-hidden="true">↗</span>
+    Commissions
+  </a>
+</nav>
+
 )}
     <section className="hero"><p className="eyebrow">LEARN · APPLY · PROGRESS</p><h1>Your next chapter<br/><em>starts here.</em></h1><p>One digital eBook. A clear path to learning and measurable sales performance.</p></section>
     {message && <div className="notice" role="status">{message}</div>}
