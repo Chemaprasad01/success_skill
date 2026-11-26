@@ -304,7 +304,7 @@ async function sendWithdrawalOtp() {
     }
 
     const { data, error } = await supabase.functions.invoke(
-      'send-withdrawal-otp'
+      'send-withdrawal-otp-'
     );
 
     if (error) throw error;
