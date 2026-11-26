@@ -286,3 +286,34 @@ header button {
   position: relative;
   z-index: 31;
 }
+
+/* Mobile header and sign-out visibility */
+@media (max-width: 760px) {
+  .shell > header {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    height: 70px !important;
+    min-height: 70px !important;
+    margin-bottom: 16px !important;
+    padding: 0 4px !important;
+    overflow: visible !important;
+  }
+
+  .shell > header .brand {
+    display: block !important;
+    font-size: 20px !important;
+    visibility: visible !important;
+  }
+
+  .shell > header button {
+    display: inline-flex !important;
+    align-items: center !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: auto !important;
+    min-width: 85px !important;
+    padding: 11px 14px !important;
+  }
+}
