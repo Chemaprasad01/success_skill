@@ -219,13 +219,30 @@ footer { color: #777a83; }
 
 @media (max-width: 760px) {
   .dashboard-nav {
-    position: sticky;
-    top: 0;
-    z-index: 20;
-    overflow-x: auto;
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: row;
     flex-wrap: nowrap;
+    overflow-x: auto;
     white-space: nowrap;
     background: #15171c;
+    border-radius: 14px 14px 0 0;
+    margin: 0;
+    padding: 10px 8px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .dashboard-nav a {
+    flex: 0 0 auto;
+  }
+
+  body {
+    padding-bottom: 85px;
   }
 }
 
