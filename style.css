@@ -426,3 +426,25 @@ header button {
     grid-template-columns: 1fr;
   }
 }
+
+/* Referral analytics styling */
+.referral-analytics {
+  margin-top: 18px;
+  gap: 14px;
+}
+
+.referral-analytics .stat {
+  border: 1px solid #51432a;
+  border-radius: 13px;
+  background: linear-gradient(145deg, #222329, #15161b);
+  padding: 18px;
+}
+
+.referral-analytics .stat strong {
+  color: #f0d58c;
+  font-size: 25px;
+}
+
+.referral-analytics .stat small {
+  color: #c5b98f;
+} 
