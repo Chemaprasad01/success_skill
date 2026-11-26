@@ -25,6 +25,8 @@ const [withdrawals, setWithdrawals] = useState([]);
 const [withdrawalDebits, setWithdrawalDebits] = useState([]);
 const [adminWithdrawals, setAdminWithdrawals] = useState([]);
 const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawOtp, setWithdrawOtp] = useState('');
+const [otpSent, setOtpSent] = useState(false);
 const [payoutMethod, setPayoutMethod] = useState('upi');
 const [upiId, setUpiId] = useState('');
 const [accountHolder, setAccountHolder] = useState('');
@@ -278,12 +280,60 @@ const rankUpgradeCredits = walletTransactions
   .filter(t => t.wallet_type === 'self_upgrade')
   .reduce((sum, t) => sum + Number(t.amount_paise || 0), 0);
 
+async function sendWithdrawalOtp() {
+  setBusy(true);
+  setMessage('');
+
+  try {
+    const amountPaise = Math.round(Number(withdrawAmount) * 100);
+
+    if (!Number.isSafeInteger(amountPaise) || amountPaise <= 0) {
+      throw new Error('Enter a valid withdrawal amount.');
+    }
+
+    if (amountPaise > mainWalletAvailable) {
+      throw new Error('Insufficient available Main Wallet balance.');
+    }
+
+    if (payoutMethod === 'upi') {
+      if (!upiId.trim()) throw new Error('Enter your UPI ID.');
+    } else {
+      if (!accountHolder.trim() || !accountNumber.trim() || !ifsc.trim()) {
+        throw new Error('Complete all bank details.');
+      }
+    }
+
+    const { data, error } = await supabase.functions.invoke(
+      'send-withdrawal-otp'
+    );
+
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+
+    setWithdrawOtp('');
+    setOtpSent(true);
+    setMessage('OTP sent to your registered email. Please check your inbox.');
+  } catch (error) {
+    setMessage(error.message || 'Could not send OTP.');
+  } finally {
+    setBusy(false);
+  }
+}
+
 async function submitWithdrawal(e) {
   e.preventDefault();
   setBusy(true);
   setMessage('');
 
   try {
+    if (!otpSent) {
+      throw new Error('Please request an email OTP first.');
+    }
+
+    if (!/^\d{6}$/.test(withdrawOtp.trim())) {
+      throw new Error('Enter the valid 6-digit email OTP.');
+    }
+
     const amountPaise = Math.round(Number(withdrawAmount) * 100);
 
     if (!Number.isSafeInteger(amountPaise) || amountPaise <= 0) {
@@ -311,19 +361,26 @@ async function submitWithdrawal(e) {
       };
     }
 
-    const { error } = await supabase.rpc('request_withdrawal', {
+    const { data, error } = await supabase.rpc('request_withdrawal', {
       p_amount_paise: amountPaise,
       p_payout_method: payoutMethod,
-      p_payout_details: details
+      p_payout_details: details,
+      p_otp: withdrawOtp.trim()
     });
 
     if (error) throw error;
+
+    if (!data) {
+      throw new Error('Invalid or expired OTP. Please check your code and try again.');
+    }
 
     setWithdrawAmount('');
     setUpiId('');
     setAccountHolder('');
     setAccountNumber('');
     setIfsc('');
+    setWithdrawOtp('');
+    setOtpSent(false);
     setMessage('Withdrawal request submitted successfully.');
     await load();
   } catch (error) {
@@ -332,7 +389,7 @@ async function submitWithdrawal(e) {
     setBusy(false);
   }
 }
-
+  
 async function reviewWithdrawal(id, decision) {
   setBusy(true);
   setMessage('');
@@ -597,6 +654,30 @@ const hideBuyButton = hasVerifiedPurchase;
         </label>
       </>
     )}
+
+<button
+  className="primary"
+  type="button"
+  disabled={busy}
+  onClick={sendWithdrawalOtp}
+>
+  {busy ? 'Please wait…' : otpSent ? 'Resend email OTP' : 'Send email OTP'}
+</button>
+
+{otpSent && (
+  <label>
+    Enter email OTP
+    <input
+      type="text"
+      inputMode="numeric"
+      maxLength={6}
+      value={withdrawOtp}
+      onChange={e => setWithdrawOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+      placeholder="Enter 6-digit OTP"
+      required
+    />
+  </label>
+)}
 
     <button
       className="primary"
