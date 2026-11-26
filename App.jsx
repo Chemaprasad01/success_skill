@@ -532,10 +532,38 @@ const hideBuyButton = hasVerifiedPurchase;
   <p className="eyebrow">MY NETWORK</p>
   <h2>My Referral Team</h2>
 
-  <div className="stat">
-    <small>Total direct referrals</small>
+  <div className="stats referral-analytics">
+  <article className="stat">
+    <small>Total Referrals</small>
     <strong>{referrals.length}</strong>
-  </div>
+  </article>
+
+  <article className="stat">
+    <small>Completed Payments</small>
+    <strong>
+      {referrals.filter(r => r.payment_completed).length}
+    </strong>
+  </article>
+
+  <article className="stat">
+    <small>Pending Payments</small>
+    <strong>
+      {referrals.filter(r => !r.payment_completed).length}
+    </strong>
+  </article>
+
+  <article className="stat">
+    <small>Completion Rate</small>
+    <strong>
+      {referrals.length
+        ? Math.round(
+            referrals.filter(r => r.payment_completed).length /
+            referrals.length * 100
+          )
+        : 0}%
+    </strong>
+  </article>
+</div> 
 
   {ranks.map(rank => {
     const members = referrals.filter(
