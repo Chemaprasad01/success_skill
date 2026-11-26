@@ -319,3 +319,27 @@ header button {
     padding: 11px 14px !important;
   }
 }
+
+/* Premium rank progress bars */
+.rank-progress-track {
+  width: 100%;
+  height: 9px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #292b31;
+}
+
+.rank-progress-fill {
+  height: 100%;
+  border-radius: 20px;
+  background: linear-gradient(90deg, #a9853d, #f0d58c);
+  transition: width 0.5s ease;
+}
+
+.rank-progress-label {
+  display: block;
+  margin-top: 7px;
+  color: #c9b783;
+  font-size: 12px;
+}
