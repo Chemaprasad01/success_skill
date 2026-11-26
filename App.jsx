@@ -470,7 +470,16 @@ const hideBuyButton = hasVerifiedPurchase;
   
   if(!configured) return <main className="shell"><header><div className="brand">SUCCESS <b>SKILL</b></div><span className="tag">SETUP REQUIRED</span></header><section className="hero"><p className="eyebrow">DIGITAL LEARNING PLATFORM</p><h1>Build skills.<br/><em>Grow with purpose.</em></h1><p>Connect your Supabase project to activate customer accounts, orders and the admin dashboard.</p></section><section className="panel"><h2>Connect Supabase</h2><ol><li>Create a Supabase project.</li><li>Copy <b>.env.example</b> to <b>.env</b>.</li><li>Add your Project URL and anon key.</li><li>Run the SQL setup in <b>supabase/schema.sql</b>.</li></ol><p className="muted">Never put your Supabase service-role key in this frontend.</p></section><footer>SUCCESS SKILL · Starter website</footer></main>;
   return <main className="shell">
-    <header><div className="brand">SUCCESS <b>SKILL</b></div>{session?<button className="primary" onClick={signOut}>Sign out</button>:<span className="tag">EBOOK PLATFORM</span>}</header>
+    {session && (
+  <nav className="dashboard-nav" aria-label="Dashboard navigation">
+    <a href="#overview">Overview</a>
+    <a href="#wallets">My Wallets</a>
+    <a href="#referrals">My Team</a>
+    <a href="#ranks">Rank Progress</a>
+    <a href="#orders">My Orders</a>
+    <a href="#commissions">Commissions</a>
+  </nav>
+)}
     <section className="hero"><p className="eyebrow">LEARN · APPLY · PROGRESS</p><h1>Your next chapter<br/><em>starts here.</em></h1><p>One digital eBook. A clear path to learning and measurable sales performance.</p></section>
     {message && <div className="notice" role="status">{message}</div>}
     {!session ? <section className="auth panel">
@@ -484,7 +493,7 @@ const hideBuyButton = hasVerifiedPurchase;
         <button className="primary" disabled={busy}>{busy?'Please wait…':mode==='login'?'Login':'Create account'}</button>
       </form>
       <p className="muted tiny">Use a valid email. Your account may require email confirmation depending on Supabase settings.</p>
-    </section> : <><section className="welcome"><div><p className="eyebrow">MEMBER DASHBOARD</p><h2>Hello, {profile?.full_name || session.user.email}</h2><p className="muted">
+    </section> : <><section className="welcome" id="overview"> <div><p className="eyebrow">MEMBER DASHBOARD</p><h2>Hello, {profile?.full_name || session.user.email}</h2><p className="muted">
   Referral code: <b>{profile?.referral_code || 'Preparing…'}</b>
 </p>
 
@@ -510,7 +519,8 @@ const hideBuyButton = hasVerifiedPurchase;
   </div>
 )}</div><span className="rank">{profile?.rank || 'Not Activated'}</span></section>
       <div className="stats">
-<section className="panel">
+<section className="panel" 
+  id="referrals">
   <p className="eyebrow">MY NETWORK</p>
   <h2>My Referral Team</h2>
 
@@ -562,7 +572,8 @@ const hideBuyButton = hasVerifiedPurchase;
 </section> 
       <article className="stat"><small>Verified commissions</small><strong>{money(totalCommission)}</strong></article><article className="stat"><small>My orders</small><strong>{orders.length}</strong></article><article className="stat"><small>Current rank</small><strong className="ranktext">{profile?.rank || 'Not Activated'}</strong></article></div>
      
-<section className="panel">
+<section className="panel"
+  id="wallets">
   <p className="eyebrow">MY WALLETS</p>
   <h2>Wallet balances</h2>
 
@@ -762,7 +773,8 @@ const hideBuyButton = hasVerifiedPurchase;
 </div>
 </section>
       
-<section className="panel">
+<section className="panel"
+  id="ranks">
   <h2>Rank pathway</h2>
 
   <div className="rankpath">
@@ -806,8 +818,10 @@ const hideBuyButton = hasVerifiedPurchase;
   </p>
 </section>
 
-      <section className="panel"><h2>My orders</h2><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th><th>Retail verified</th></tr></thead><tbody>{orders.length?orders.map(o=><tr key={o.id}><td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(o.amount_paise || 0) / 100)}</td><td><span className={'status '+o.status}>{o.status}</span></td><td>{o.retail_verified?'Yes':'Pending'}</td></tr>):<tr><td colSpan="4" className="muted">No orders yet.</td></tr>}</tbody></table></div></section>
-      <section className="panel"><h2>Commission history</h2><p className="tiny muted">Commissions are calculated only on administrator-verified qualifying retail sales under a legally reviewed plan.</p><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{commissions.length?commissions.map(c=><tr key={c.id}><td>{new Date(c.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(c.commission_paise || 0) / 100)}</td>
+      <section className="panel"
+        id="orders"><h2>My orders</h2><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th><th>Retail verified</th></tr></thead><tbody>{orders.length?orders.map(o=><tr key={o.id}><td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(o.amount_paise || 0) / 100)}</td><td><span className={'status '+o.status}>{o.status}</span></td><td>{o.retail_verified?'Yes':'Pending'}</td></tr>):<tr><td colSpan="4" className="muted">No orders yet.</td></tr>}</tbody></table></div></section>
+      <section className="panel"
+        id="commissions"><h2>Commission history</h2><p className="tiny muted">Commissions are calculated only on administrator-verified qualifying retail sales under a legally reviewed plan.</p><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{commissions.length?commissions.map(c=><tr key={c.id}><td>{new Date(c.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(c.commission_paise || 0) / 100)}</td>
 <td>{c.payout_destination}</td></tr>):<tr><td colSpan="3" className="muted">No commissions recorded.</td></tr>}</tbody></table></div></section>
       {profile?.role==='admin'&&<><section className="panel admin"><p className="eyebrow">ADMIN CONTROL</p> 
   <h2>Withdrawal management</h2>
