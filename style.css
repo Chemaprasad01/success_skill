@@ -206,9 +206,11 @@ footer { color: #777a83; }
   }
 
   .shell {
-    max-width: 1180px;
-    margin-left: 245px;
-    margin-right: 24px;
+  box-sizing: border-box;
+  width: calc(100% - 293px);
+  max-width: 1180px;
+  margin-left: 245px;
+  margin-right: 24px;
   }
 
   .dashboard-nav a:first-child {
