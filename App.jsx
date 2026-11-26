@@ -781,8 +781,9 @@ const hideBuyButton = hasVerifiedPurchase;
 </div>
 </section>
       
-<section className="panel"
-  id="ranks">
+
+<section className="panel" id="ranks">
+  <p className="eyebrow">RANK ACHIEVEMENT</p>
   <h2>Rank pathway</h2>
 
   <div className="rankpath">
@@ -804,6 +805,11 @@ const hideBuyButton = hasVerifiedPurchase;
           ? Math.min(rankUpgradeCredits, required)
           : 0;
 
+      const percentage = Math.min(
+        100,
+        Math.round((progress / required) * 100)
+      );
+
       return (
         <div
           className={'rankstep ' + (r === profile?.rank ? 'current' : '')}
@@ -811,8 +817,27 @@ const hideBuyButton = hasVerifiedPurchase;
         >
           <span>{String(i + 1).padStart(2, '0')}</span>
           <b>{r}</b>
+
           <small>
             {money(progress / 100)} / {money(required / 100)}
+          </small>
+
+          <div
+            className="rank-progress-track"
+            role="progressbar"
+            aria-label={`${r} rank progress`}
+            aria-valuenow={percentage}
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <div
+              className="rank-progress-fill"
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+
+          <small className="rank-progress-label">
+            {completed ? 'Completed' : `${percentage}% completed`}
           </small>
         </div>
       );
