@@ -565,3 +565,44 @@ header button {
     overflow-wrap: anywhere;
   }
 }
+
+/* Customer profile details */
+.profile-details {
+  margin-bottom: 22px;
+  border: 1px solid rgba(214, 183, 109, 0.2);
+}
+
+.profile-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.profile-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  min-width: 0;
+  border: 1px solid #303039;
+  border-radius: 12px;
+  background: #191a20;
+}
+
+.profile-detail-item small {
+  color: #aaa4a0;
+  font-size: 12px;
+}
+
+.profile-detail-item strong {
+  color: #f0d58c;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .profile-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
