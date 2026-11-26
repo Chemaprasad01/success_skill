@@ -713,6 +713,47 @@ const hideBuyButton = hasVerifiedPurchase;
 </section>
 
       <div className="stats">
+        
+<section className="panel profile-details" id="profile-details">
+  <p className="eyebrow">ACCOUNT INFORMATION</p>
+  <h2>My Profile Details</h2>
+
+  <div className="profile-details-grid">
+    <div className="profile-detail-item">
+      <small>Full Name</small>
+      <strong>{profile?.full_name || 'Not available'}</strong>
+    </div>
+
+    <div className="profile-detail-item">
+      <small>Email Address</small>
+      <strong>{profile?.email || session.user.email}</strong>
+    </div>
+
+    <div className="profile-detail-item">
+      <small>Referral Code</small>
+      <strong>{profile?.referral_code || 'Preparing…'}</strong>
+    </div>
+
+    <div className="profile-detail-item">
+      <small>Current Rank</small>
+      <strong>{profile?.rank || 'Not Activated'}</strong>
+    </div>
+
+    <div className="profile-detail-item">
+      <small>Account Created</small>
+      <strong>
+        {profile?.created_at
+          ? new Date(profile.created_at).toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric'
+            })
+          : 'Not available'}
+      </strong>
+    </div>
+  </div>
+</section>
+
 <section className="panel" 
   id="referrals">
   <p className="eyebrow">MY NETWORK</p>
