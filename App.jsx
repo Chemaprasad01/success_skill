@@ -926,9 +926,7 @@ const hideBuyButton = hasVerifiedPurchase;
 </tr>
 )) : (
   <tr>
-    <td colSpan="5" className="muted">No orders.</td>
-  </tr>
-)}:<tr><td colSpan="5" className="muted">No orders.</td></tr>}</tbody></table></div></section></>}
+    <td colSpan="5" className="muted">No orders.</td></tr>}</tbody></table></div></section></>}
     </>}
     <section className="legal"><b>Important:</b> SUCCESS SKILL must sell a genuine eBook at a fair, disclosed price. Referral rewards, if offered, must be tied to verified retail sales and a compensation plan reviewed for compliance with Indian law. No payment is made merely for recruitment, joining, or upgrading a rank.</section>
     <footer>© {new Date().getFullYear()} SUCCESS SKILL · Built for learning and genuine product sales</footer>
