@@ -207,8 +207,11 @@ async function uploadAvatar(file) {
     setProfile(previous => ({ ...previous, avatar_url: avatarUrl }));
     setMessage('Profile photo updated successfully.');
   } catch (error) {
-    setMessage(error.message || 'Could not upload profile photo.');
-  } finally {
+  setMessage(
+    `Error: ${error.message} | User ID: ${session?.user?.id || 'Not logged in'}`
+  );
+  } 
+ finally {
     setAvatarBusy(false);
   }
 }
