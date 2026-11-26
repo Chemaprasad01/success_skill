@@ -189,6 +189,7 @@ async function uploadAvatar(file) {
       });
 
     if (uploadError) throw uploadError;
+    console.log('AVATAR STORAGE UPLOAD SUCCESS');
 
     const { data } = supabase.storage
       .from('avatars')
@@ -207,14 +208,17 @@ async function uploadAvatar(file) {
     setProfile(previous => ({ ...previous, avatar_url: avatarUrl }));
     setMessage('Profile photo updated successfully.');
   } catch (error) {
+  console.error('AVATAR ERROR DETAILS:', error);
+
   setMessage(
-    `Error: ${error.message} | User ID: ${session?.user?.id || 'Not logged in'}`
+    `Error: ${error.message} | Code: ${error.code || 'N/A'} | Details: ${error.details || 'N/A'}`
   );
-  } 
+  }
  finally {
     setAvatarBusy(false);
   }
 }
+
 
 async function removeAvatar() {
   if (!session?.user?.id) return;
@@ -241,13 +245,17 @@ async function removeAvatar() {
     setProfile(previous => ({ ...previous, avatar_url: null }));
     setMessage('Profile photo removed.');
   } catch (error) {
-    setMessage(error.message || 'Could not remove profile photo.');
+    console.error('AVATAR REMOVE ERROR:', error);
+
+    setMessage(
+      `Error: ${error.message} | Code: ${error.code || 'N/A'}`
+    );
   } finally {
     setAvatarBusy(false);
   }
 }
 
-async function authSubmit(e){
+async function authSubmit(e) {
     e.preventDefault(); setBusy(true); setMessage('');
     try{
       if(mode==='signup'){
