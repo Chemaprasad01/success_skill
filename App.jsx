@@ -97,12 +97,19 @@ setProfile(p);
     setOrders(o || []);
     setCommissions(c || []);
     setReferrals(refs || []);
-    const { data: ticketData, error: ticketError } = await supabase
+    let ticketQuery = supabase
   .from('support_tickets')
-  .select('id, ticket_number, member_id, category, subject, complaint, status, created_at, updated_at')
-  .order('created_at', { ascending: false });
+  .select('id, ticket_number, member_id, category, subject, complaint, status, created_at, updated_at');
+
+if (p.role !== 'admin') {
+  ticketQuery = ticketQuery.eq('member_id', uid);
+}
+
+const { data: ticketData, error: ticketError } =
+  await ticketQuery.order('created_at', { ascending: false });
 
 if (ticketError) throw ticketError;
+
 setSupportTickets(ticketData || []);
     const { data: walletData, error: walletError } = await supabase
   .from('wallet_ledger')
