@@ -1142,7 +1142,7 @@ const hideBuyButton = hasVerifiedPurchase;
       <section className="panel">
   <h2>My withdrawal history</h2>
 
-  <div className="tablewrap">
+  <div className="tablewrap withdrawal-history-scroll"> 
     <table>
       <thead>
         <tr>
@@ -1220,7 +1220,7 @@ const hideBuyButton = hasVerifiedPurchase;
       {profile?.role==='admin'&&<><section className="panel admin"><p className="eyebrow">ADMIN CONTROL</p> 
   <h2>Withdrawal management</h2>
 
-  <div className="tablewrap">
+  <div className="tablewrap admin-withdrawal-scroll"> 
     <table>
       <thead>
         <tr>
@@ -1306,7 +1306,7 @@ const hideBuyButton = hasVerifiedPurchase;
       </tbody>
     </table>
   </div>
-      </section><section className="panel admin"><p className="eyebrow">ADMIN CONTROL</p><h2>Order verification</h2><p className="tiny muted">Check payment proof and confirm that each order is a genuine retail sale before approving it.</p><div className="tablewrap"><table><thead><tr><th>Order</th><th>Amount</th><th>Payment Status</th><th>Retail Status</th><th>Action</th></tr></thead><tbody>{adminOrders.length ? adminOrders.map(o => (
+      </section><section className="panel admin"><p className="eyebrow">ADMIN CONTROL</p><h2>Order verification</h2><p className="tiny muted">Check payment proof and confirm that each order is a genuine retail sale before approving it.</p><div className="tablewrap admin-order-scroll"><table><thead><tr><th>Order</th><th>Amount</th><th>Payment Status</th><th>Retail Status</th><th>Action</th></tr></thead><tbody>{adminOrders.length ? adminOrders.map(o => (
   <tr key={o.id}>
     <td>{o.customer_id?.slice(0, 8) || 'Unknown'}</td>
     <td>{money(Number(o.amount_paise || 0) / 100)}</td>
