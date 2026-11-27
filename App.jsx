@@ -1496,7 +1496,7 @@ const hideBuyButton = hasVerifiedPurchase;
     <p className="muted">You have not submitted any complaints yet.</p>
   ) : (
     <div className="activity-list">
-      {mysupportTickets.map(ticket => (
+      {mySupportTickets.map(ticket => (
         <article className="activity-item" key={ticket.id}>
           <div className="activity-content">
             <strong>Ticket #{ticket.ticket_number}</strong>
