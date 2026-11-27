@@ -770,3 +770,42 @@ header button {
   width: 100%;
 }
 
+/* My Withdrawal History — independent scroll area */
+.withdrawal-history-scroll {
+  height: 320px;
+  overflow-y: auto;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #806b3d #202126;
+}
+
+.withdrawal-history-scroll table {
+  width: 100%;
+}
+
+/* Admin Withdrawal Management — independent scroll area */
+.admin-withdrawal-scroll {
+  height: 320px;
+  overflow-y: auto;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #806b3d #202126;
+}
+
+.admin-withdrawal-scroll table {
+  width: 100%;
+}
+
+/* Admin Order Verification — independent scroll area */
+.admin-order-scroll {
+  height: 320px;
+  overflow-y: auto;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #806b3d #202126;
+}
+
+.admin-order-scroll table {
+  width: 100%;
+}
+
