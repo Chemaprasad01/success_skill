@@ -46,6 +46,9 @@ const [ticketBusy, setTicketBusy] = useState(false);
   // Admin complaint filters
 const [adminTicketStatusFilter, setAdminTicketStatusFilter] = useState('All');
 const [adminTicketCategoryFilter, setAdminTicketCategoryFilter] = useState('All');
+const mySupportTickets = supportTickets.filter(
+  ticket => ticket.member_id === session?.user?.id
+);  
   const filteredAdminTickets = supportTickets
   .filter(ticket =>
     adminTicketStatusFilter === 'All' ||
@@ -1489,11 +1492,11 @@ const hideBuyButton = hasVerifiedPurchase;
     Check your complaint status and view replies from our support team.
   </p>
 
-  {supportTickets.length === 0 ? (
+        {mySupportTickets.length === 0 ? (
     <p className="muted">You have not submitted any complaints yet.</p>
   ) : (
     <div className="activity-list">
-      {supportTickets.map(ticket => (
+      {mysupportTickets.map(ticket => (
         <article className="activity-item" key={ticket.id}>
           <div className="activity-content">
             <strong>Ticket #{ticket.ticket_number}</strong>
