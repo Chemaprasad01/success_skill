@@ -757,10 +757,21 @@ const hideBuyButton = hasVerifiedPurchase;
     {profile?.rank || 'Not Activated'}
   </span>
 </section>
-
       <div className="stats">
-        
-<section className="panel profile-details" id="profile-details">
+  <article className="stat">
+    <small>Verified commissions</small>
+    <strong>{money(totalCommission)}</strong>
+  </article>
+  <article className="stat">
+    <small>My orders</small>
+    <strong>{orders.length}</strong>
+  </article>
+  <article className="stat">
+    <small>Current rank</small>
+    <strong className="ranktext">{profile?.rank || 'Not Activated'}</strong>
+  </article>
+        </div>
+      <section className="panel profile-details" id="profile-details"> 
   <p className="eyebrow">ACCOUNT INFORMATION</p>
   <h2>My Profile Details</h2>
 
@@ -800,46 +811,151 @@ const hideBuyButton = hasVerifiedPurchase;
   </div>
 </section>
         
-<section className="panel recent-activity" id="activity">
-  <p className="eyebrow">YOUR DASHBOARD UPDATES</p>
-  <h2>Recent Activity & Notifications</h2>
-  <p className="muted">Your latest account activities.</p>
+      <section className="panel wallet-panel" 
+  id="wallets">
+  <p className="eyebrow">MY WALLETS</p>
+  <h2>Wallet balances</h2>
 
-  {recentActivities.length === 0 ? (
-    <p className="muted">No recent activity yet.</p>
+  <div className="wallet-grid">
+    <article className="wallet-card main-wallet">
+      <div className="wallet-card-top">
+        <span className="wallet-icon">₹</span>
+        <span className="wallet-tag">WITHDRAWABLE</span>
+      </div>
+
+      <small>Main Wallet</small>
+      <strong>{money(mainWalletAvailable / 100)}</strong>
+
+      <p>Available balance for eligible withdrawals.</p>
+    </article>
+
+    <article className="wallet-card rank-wallet">
+      <div className="wallet-card-top">
+        <span className="wallet-icon">★</span>
+        <span className="wallet-tag">RANK CREDIT</span>
+      </div>
+
+      <small>Rank Upgrade Credit</small>
+      <strong>{money(rankUpgradeCredits / 100)}</strong>
+
+      <p>Used toward your next eligible rank upgrade. Not withdrawable.</p>
+    </article>
+  </div>
+
+  <p className="tiny muted wallet-note">
+    Pending and approved withdrawals are reserved from your Main Wallet.
+    Rank Upgrade Credit is separate and cannot be withdrawn.
+  </p>
+</section>
+<section className="panel">
+  <div className="sectionhead">
+    <div>
+      <p className="eyebrow">DIGITAL PRODUCT</p>
+      <h2>SUCCESS SKILL eBook</h2>
+    </div>
+    <span className="price">₹600</span>
+  </div>
+
+  <p className="muted">
+    Learn, apply and grow with the SUCCESS SKILL digital learning program.
+  </p>
+
+  <div className="actions">
+  {!hideBuyButton ? (
+    <button
+      className="primary"
+      onClick={placeOrder}
+      disabled={busy}
+    >
+      Buy eBook · ₹600
+    </button>
   ) : (
-    <div className="activity-list">
-      {recentActivities.slice(0, 10).map(activity => (
-        <article className="activity-item" key={activity.id}>
-          <div className="activity-icon">
-            {activity.type === 'order' ? '▤' :
-             activity.type === 'referral' ? '♧' :
-             activity.type === 'commission' ? '₹' :
-             activity.type === 'rank' ? '★' : '↗'}
-          </div>
-
-          <div className="activity-content">
-            <strong>{activity.title}</strong>
-            <p>{activity.description}</p>
-            <small>
-              {activity.date
-                ? new Date(activity.date).toLocaleString('en-IN')
-                : 'Date unavailable'}
-            </small>
-          </div>
-
-          {activity.amount != null && (
-            <strong className="activity-amount">
-              ₹{(Number(activity.amount) / 100).toFixed(2)}
-            </strong>
-          )}
-        </article>
-      ))}
+    <div className="notice">
+      {isPlatinumOrHigher
+        ? '✓ eBook purchased. Your membership is activated.'
+        : 'Payment verified. Your rank activation is being processed.'}
     </div>
   )}
+
+  <button
+    className="outline dark"
+    onClick={downloadBook}
+    disabled={busy}
+  >
+    Download purchased eBook
+  </button>
+</div>
 </section>
 
-<section className="panel" 
+<section className="panel" id="ranks">
+  <p className="eyebrow">RANK ACHIEVEMENT</p>
+  <h2>Rank pathway</h2>
+
+  <div className="rankpath">
+    {ranks.map((r, i) => {
+      const required = [600, 900, 1800, 3600, 7500][i] * 100;
+
+      const currentRankIndex = ranks.findIndex(
+        item =>
+          item.toLowerCase() ===
+          String(profile?.rank || '').toLowerCase()
+      );
+
+      const completed = currentRankIndex >= i;
+      const nextRank = i === currentRankIndex + 1;
+
+      const progress = completed
+        ? required
+        : nextRank
+          ? Math.min(rankUpgradeCredits, required)
+          : 0;
+
+      const percentage = Math.min(
+        100,
+        Math.round((progress / required) * 100)
+      );
+
+      return (
+        <div
+          className={'rankstep ' + (r === profile?.rank ? 'current' : '')}
+          key={r}
+        >
+          <span>{String(i + 1).padStart(2, '0')}</span>
+          <b>{r}</b>
+
+          <small>
+            {money(progress / 100)} / {money(required / 100)}
+          </small>
+
+          <div
+            className="rank-progress-track"
+            role="progressbar"
+            aria-label={`${r} rank progress`}
+            aria-valuenow={percentage}
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <div
+              className="rank-progress-fill"
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+
+          <small className="rank-progress-label">
+            {completed ? 'Completed' : `${percentage}% completed`}
+          </small>
+        </div>
+      );
+    })}
+  </div>
+
+  <p className="tiny muted">
+    Rank progress uses Rank Upgrade Credit only.
+    Main Wallet is excluded. Rank advancement requires approved,
+    documented genuine retail-sales criteria and administrator verification.
+  </p>
+</section>
+      <section className="panel" 
   id="referrals">
   <p className="eyebrow">MY NETWORK</p>
   <h2>My Referral Team</h2>
@@ -917,49 +1033,8 @@ const hideBuyButton = hasVerifiedPurchase;
       </details>
     );
   })}
-</section> 
-      <article className="stat"><small>Verified commissions</small><strong>{money(totalCommission)}</strong></article><article className="stat"><small>My orders</small><strong>{orders.length}</strong></article><article className="stat"><small>Current rank</small><strong className="ranktext">{profile?.rank || 'Not Activated'}</strong></article></div>
-     
-
-<section className="panel wallet-panel" 
-  id="wallets">
-  <p className="eyebrow">MY WALLETS</p>
-  <h2>Wallet balances</h2>
-
-  <div className="wallet-grid">
-    <article className="wallet-card main-wallet">
-      <div className="wallet-card-top">
-        <span className="wallet-icon">₹</span>
-        <span className="wallet-tag">WITHDRAWABLE</span>
-      </div>
-
-      <small>Main Wallet</small>
-      <strong>{money(mainWalletAvailable / 100)}</strong>
-
-      <p>Available balance for eligible withdrawals.</p>
-    </article>
-
-    <article className="wallet-card rank-wallet">
-      <div className="wallet-card-top">
-        <span className="wallet-icon">★</span>
-        <span className="wallet-tag">RANK CREDIT</span>
-      </div>
-
-      <small>Rank Upgrade Credit</small>
-      <strong>{money(rankUpgradeCredits / 100)}</strong>
-
-      <p>Used toward your next eligible rank upgrade. Not withdrawable.</p>
-    </article>
-  </div>
-
-  <p className="tiny muted wallet-note">
-    Pending and approved withdrawals are reserved from your Main Wallet.
-    Rank Upgrade Credit is separate and cannot be withdrawn.
-  </p>
 </section>
-
-
-<section className="panel">
+      <section className="panel">
   <p className="eyebrow">PAYOUT</p>
   <h2>Request withdrawal</h2>
 
@@ -1063,8 +1138,7 @@ const hideBuyButton = hasVerifiedPurchase;
     </button>
   </form>
 </section>
-
-<section className="panel">
+      <section className="panel">
   <h2>My withdrawal history</h2>
 
   <div className="tablewrap">
@@ -1097,121 +1171,51 @@ const hideBuyButton = hasVerifiedPurchase;
   </div>
 </section>
 
-      <section className="panel">
-  <div className="sectionhead">
-    <div>
-      <p className="eyebrow">DIGITAL PRODUCT</p>
-      <h2>SUCCESS SKILL eBook</h2>
-    </div>
-    <span className="price">₹600</span>
-  </div>
-
-  <p className="muted">
-    Learn, apply and grow with the SUCCESS SKILL digital learning program.
-  </p>
-
-  <div className="actions">
-  {!hideBuyButton ? (
-    <button
-      className="primary"
-      onClick={placeOrder}
-      disabled={busy}
-    >
-      Buy eBook · ₹600
-    </button>
-  ) : (
-    <div className="notice">
-      {isPlatinumOrHigher
-        ? '✓ eBook purchased. Your membership is activated.'
-        : 'Payment verified. Your rank activation is being processed.'}
-    </div>
-  )}
-
-  <button
-    className="outline dark"
-    onClick={downloadBook}
-    disabled={busy}
-  >
-    Download purchased eBook
-  </button>
-</div>
-</section>
-      
-
-<section className="panel" id="ranks">
-  <p className="eyebrow">RANK ACHIEVEMENT</p>
-  <h2>Rank pathway</h2>
-
-  <div className="rankpath">
-    {ranks.map((r, i) => {
-      const required = [600, 900, 1800, 3600, 7500][i] * 100;
-
-      const currentRankIndex = ranks.findIndex(
-        item =>
-          item.toLowerCase() ===
-          String(profile?.rank || '').toLowerCase()
-      );
-
-      const completed = currentRankIndex >= i;
-      const nextRank = i === currentRankIndex + 1;
-
-      const progress = completed
-        ? required
-        : nextRank
-          ? Math.min(rankUpgradeCredits, required)
-          : 0;
-
-      const percentage = Math.min(
-        100,
-        Math.round((progress / required) * 100)
-      );
-
-      return (
-        <div
-          className={'rankstep ' + (r === profile?.rank ? 'current' : '')}
-          key={r}
-        >
-          <span>{String(i + 1).padStart(2, '0')}</span>
-          <b>{r}</b>
-
-          <small>
-            {money(progress / 100)} / {money(required / 100)}
-          </small>
-
-          <div
-            className="rank-progress-track"
-            role="progressbar"
-            aria-label={`${r} rank progress`}
-            aria-valuenow={percentage}
-            aria-valuemin="0"
-            aria-valuemax="100"
-          >
-            <div
-              className="rank-progress-fill"
-              style={{ width: `${percentage}%` }}
-            />
-          </div>
-
-          <small className="rank-progress-label">
-            {completed ? 'Completed' : `${percentage}% completed`}
-          </small>
-        </div>
-      );
-    })}
-  </div>
-
-  <p className="tiny muted">
-    Rank progress uses Rank Upgrade Credit only.
-    Main Wallet is excluded. Rank advancement requires approved,
-    documented genuine retail-sales criteria and administrator verification.
-  </p>
-</section>
-
       <section className="panel"
         id="orders"><h2>My orders</h2><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th><th>Retail verified</th></tr></thead><tbody>{orders.length?orders.map(o=><tr key={o.id}><td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(o.amount_paise || 0) / 100)}</td><td><span className={'status '+o.status}>{o.status}</span></td><td>{o.retail_verified?'Yes':'Pending'}</td></tr>):<tr><td colSpan="4" className="muted">No orders yet.</td></tr>}</tbody></table></div></section>
       <section className="panel"
         id="commissions"><h2>Commission history</h2><p className="tiny muted">Commissions are calculated only on administrator-verified qualifying retail sales under a legally reviewed plan.</p><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{commissions.length?commissions.map(c=><tr key={c.id}><td>{new Date(c.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(c.commission_paise || 0) / 100)}</td>
 <td>{c.payout_destination}</td></tr>):<tr><td colSpan="3" className="muted">No commissions recorded.</td></tr>}</tbody></table></div></section>
+      <section className="panel recent-activity" id="activity">
+  <p className="eyebrow">YOUR DASHBOARD UPDATES</p>
+  <h2>Recent Activity & Notifications</h2>
+  <p className="muted">Your latest account activities.</p>
+
+  {recentActivities.length === 0 ? (
+    <p className="muted">No recent activity yet.</p>
+  ) : (
+    <div className="activity-list">
+      {recentActivities.slice(0, 10).map(activity => (
+        <article className="activity-item" key={activity.id}>
+          <div className="activity-icon">
+            {activity.type === 'order' ? '▤' :
+             activity.type === 'referral' ? '♧' :
+             activity.type === 'commission' ? '₹' :
+             activity.type === 'rank' ? '★' : '↗'}
+          </div>
+
+          <div className="activity-content">
+            <strong>{activity.title}</strong>
+            <p>{activity.description}</p>
+            <small>
+              {activity.date
+                ? new Date(activity.date).toLocaleString('en-IN')
+                : 'Date unavailable'}
+            </small>
+          </div>
+
+          {activity.amount != null && (
+            <strong className="activity-amount">
+              ₹{(Number(activity.amount) / 100).toFixed(2)}
+            </strong>
+          )}
+        </article>
+      ))}
+    </div>
+  )}
+</section>
+
+ 
       {profile?.role==='admin'&&<><section className="panel admin"><p className="eyebrow">ADMIN CONTROL</p> 
   <h2>Withdrawal management</h2>
 
