@@ -469,7 +469,38 @@ async function sendPasswordReset(e) {
     setBusy(false);
   }
 }
+async function updatePassword(e) {
+  e.preventDefault();
+  setBusy(true);
+  setMessage('');
 
+  try {
+    if (newPassword.length < 8) {
+      throw new Error('Password must contain at least 8 characters.');
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) throw error;
+
+    await supabase.auth.signOut();
+
+    setNewPassword('');
+    setPassword('');
+    setResetMode(false);
+    setRecoveryReady(false);
+    setMode('login');
+    setMessage('Password updated successfully. Please log in with your new password.');
+
+  } catch (error) {
+    setMessage(error.message || 'Could not update password.');
+  } finally {
+    setBusy(false);
+  }
+}
+  
 async function authSubmit(e) {
     e.preventDefault(); setBusy(true); setMessage('');
     try{
@@ -905,7 +936,7 @@ const hideBuyButton = hasVerifiedPurchase;
 )}
     <section className="hero"><p className="eyebrow">LEARN · APPLY · PROGRESS</p><h1>Your next chapter<br/><em>starts here.</em></h1><p>One digital eBook. A clear path to learning and measurable sales performance.</p></section>
     {message && <div className="notice" role="status">{message}</div>}
-    {!session ? <section className="auth panel">
+    {(!session || recoveryReady) ? <section className="auth panel"> 
       <div className="tabs"><button className={mode==='login'?'tab active':'tab'} onClick={()=>setMode('login')}>Login</button><button className={mode==='signup'?'tab active':'tab'} onClick={()=>setMode('signup')}>Create account</button></div>
       <h2>{mode==='login'?'Welcome back':'Join SUCCESS SKILL'}</h2>
       <form onSubmit={authSubmit}>
