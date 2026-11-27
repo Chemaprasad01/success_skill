@@ -375,6 +375,52 @@ const rankUpgradeCredits = walletTransactions
   .filter(t => t.wallet_type === 'self_upgrade')
   .reduce((sum, t) => sum + Number(t.amount_paise || 0), 0);
 
+const recentActivities = [
+  ...orders.map(o => ({
+    id: `order-${o.id}`,
+    type: 'order',
+    title: 'Course Purchase',
+    description: `${o.course_name || 'Course'} — ${o.status || 'Status unavailable'}`,
+    date: o.created_at,
+    amount: o.amount_paise
+  })),
+
+  ...referrals.map(r => ({
+    id: `referral-${r.id}`,
+    type: 'referral',
+    title: 'New Referral',
+    description: r.full_name || r.email || 'A new member joined your team',
+    date: r.created_at
+  })),
+
+  ...commissions.map(c => ({
+    id: `commission-${c.id}`,
+    type: 'commission',
+    title: 'Commission Received',
+    description: `Commission #${c.sequence_number || '—'} · ${c.payout_destination || 'Wallet'}`,
+    date: c.created_at,
+    amount: c.commission_paise
+  })),
+
+  ...rankUpgrades.map(r => ({
+    id: `rank-${r.id}`,
+    type: 'rank',
+    title: 'Rank Upgrade',
+    description: `${r.previous_rank || 'Starter'} → ${r.new_rank}`,
+    date: r.verified_at || r.created_at,
+    amount: r.amount_paise
+  })),
+
+  ...withdrawals.map(w => ({
+    id: `withdrawal-${w.id}`,
+    type: 'withdrawal',
+    title: 'Withdrawal Update',
+    description: `Withdrawal ${w.status}`,
+    date: w.paid_at || w.reviewed_at || w.created_at,
+    amount: w.amount_paise
+  }))
+].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
 async function sendWithdrawalOtp() {
   setBusy(true);
   setMessage('');
@@ -752,6 +798,45 @@ const hideBuyButton = hasVerifiedPurchase;
       </strong>
     </div>
   </div>
+</section>
+        
+<section className="panel recent-activity" id="activity">
+  <p className="eyebrow">YOUR DASHBOARD UPDATES</p>
+  <h2>Recent Activity & Notifications</h2>
+  <p className="muted">Your latest account activities.</p>
+
+  {recentActivities.length === 0 ? (
+    <p className="muted">No recent activity yet.</p>
+  ) : (
+    <div className="activity-list">
+      {recentActivities.slice(0, 10).map(activity => (
+        <article className="activity-item" key={activity.id}>
+          <div className="activity-icon">
+            {activity.type === 'order' ? '▤' :
+             activity.type === 'referral' ? '♧' :
+             activity.type === 'commission' ? '₹' :
+             activity.type === 'rank' ? '★' : '↗'}
+          </div>
+
+          <div className="activity-content">
+            <strong>{activity.title}</strong>
+            <p>{activity.description}</p>
+            <small>
+              {activity.date
+                ? new Date(activity.date).toLocaleString('en-IN')
+                : 'Date unavailable'}
+            </small>
+          </div>
+
+          {activity.amount != null && (
+            <strong className="activity-amount">
+              ₹{(Number(activity.amount) / 100).toFixed(2)}
+            </strong>
+          )}
+        </article>
+      ))}
+    </div>
+  )}
 </section>
 
 <section className="panel" 
