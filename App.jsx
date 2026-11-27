@@ -34,6 +34,15 @@ const [accountHolder, setAccountHolder] = useState('');
 const [accountNumber, setAccountNumber] = useState('');
 const [ifsc, setIfsc] = useState('');
 const [payoutReferences, setPayoutReferences] = useState({});
+  // Customer Support & Complaint System
+const [supportTickets, setSupportTickets] = useState([]);
+const [selectedTicket, setSelectedTicket] = useState(null);
+const [ticketReplies, setTicketReplies] = useState([]);
+const [ticketCategory, setTicketCategory] = useState('Membership and payments');
+const [ticketSubject, setTicketSubject] = useState('');
+const [ticketComplaint, setTicketComplaint] = useState('');
+const [ticketReply, setTicketReply] = useState('');
+const [ticketBusy, setTicketBusy] = useState(false);
 
 
   useEffect(()=>{
