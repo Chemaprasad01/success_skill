@@ -97,6 +97,13 @@ setProfile(p);
     setOrders(o || []);
     setCommissions(c || []);
     setReferrals(refs || []);
+    const { data: ticketData, error: ticketError } = await supabase
+  .from('support_tickets')
+  .select('id, ticket_number, member_id, category, subject, complaint, status, created_at, updated_at')
+  .order('created_at', { ascending: false });
+
+if (ticketError) throw ticketError;
+setSupportTickets(ticketData || []);
     const { data: walletData, error: walletError } = await supabase
   .from('wallet_ledger')
   .select('id, member_id, commission_event_id, wallet_type, amount_paise, created_at')
@@ -169,7 +176,137 @@ if (p.role === 'admin') {
   }
 }
 
+async function submitSupportTicket(e) {
+  e.preventDefault();
 
+  if (!session?.user?.id) {
+    setMessage('Please login first.');
+    return;
+  }
+
+  if (ticketSubject.trim().length < 3 || ticketComplaint.trim().length < 10) {
+    setMessage('Subject must be at least 3 characters and complaint at least 10 characters.');
+    return;
+  }
+
+  setTicketBusy(true);
+  setMessage('');
+
+  try {
+    const { data, error } = await supabase
+      .from('support_tickets')
+      .insert({
+        member_id: session.user.id,
+        category: ticketCategory,
+        subject: ticketSubject.trim(),
+        complaint: ticketComplaint.trim()
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    setTicketSubject('');
+    setTicketComplaint('');
+    setTicketCategory('Membership and payments');
+
+    setMessage(`Complaint submitted successfully! Your Ticket ID is #${data.ticket_number}.`);
+
+    await load();
+  } catch (error) {
+    setMessage(error.message || 'Unable to submit complaint.');
+  } finally {
+    setTicketBusy(false);
+  }
+}
+  async function loadTicketReplies(ticket) {
+  setSelectedTicket(ticket);
+  setTicketReplies([]);
+
+  try {
+    const { data, error } = await supabase
+      .from('support_ticket_replies')
+      .select('id, ticket_id, sender_id, message, created_at')
+      .eq('ticket_id', ticket.id)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    setTicketReplies(data || []);
+  } catch (error) {
+    setMessage(error.message || 'Unable to load complaint conversation.');
+  }
+  }
+  async function sendTicketReply(e) {
+  e.preventDefault();
+
+  if (!selectedTicket || !session?.user?.id || !ticketReply.trim()) {
+    return;
+  }
+
+  setTicketBusy(true);
+  setMessage('');
+
+  try {
+    const { error } = await supabase
+      .from('support_ticket_replies')
+      .insert({
+        ticket_id: selectedTicket.id,
+        sender_id: session.user.id,
+        message: ticketReply.trim()
+      });
+
+    if (error) throw error;
+
+    if (profile?.role === 'admin') {
+      const { error: statusError } = await supabase
+        .from('support_tickets')
+        .update({
+          status: 'Replied',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedTicket.id);
+
+      if (statusError) throw statusError;
+    }
+
+    setTicketReply('');
+    await loadTicketReplies(selectedTicket);
+    await load();
+
+    setMessage('Reply sent successfully.');
+  } catch (error) {
+    setMessage(error.message || 'Unable to send reply.');
+  } finally {
+    setTicketBusy(false);
+  }
+  }
+  async function updateTicketStatus(ticketId, status) {
+  if (profile?.role !== 'admin') return;
+
+  try {
+    const { error } = await supabase
+      .from('support_tickets')
+      .update({
+        status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', ticketId);
+
+    if (error) throw error;
+
+    setMessage('Complaint status updated successfully.');
+
+    await load();
+
+    if (selectedTicket?.id === ticketId) {
+      setSelectedTicket(prev => ({ ...prev, status }));
+    }
+  } catch (error) {
+    setMessage(error.message || 'Unable to update complaint status.');
+  }
+  }
+  
 async function uploadAvatar(file) {
   if (!file || !session?.user?.id) return;
 
@@ -1266,6 +1403,155 @@ const hideBuyButton = hasVerifiedPurchase;
       <section className="panel"
         id="commissions"><h2>Commission history</h2><p className="tiny muted">Commissions are calculated only on administrator-verified qualifying retail sales under a legally reviewed plan.</p><div className="tablewrap commission-scroll"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{commissions.length?commissions.map(c=><tr key={c.id}><td>{new Date(c.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(c.commission_paise || 0) / 100)}</td>
 <td>{c.payout_destination}</td></tr>):<tr><td colSpan="3" className="muted">No commissions recorded.</td></tr>}</tbody></table></div></section>
+    <section className="panel" id="support">
+  <p className="eyebrow">CUSTOMER SUPPORT</p>
+  <h2>Help & Support Center</h2>
+  <p className="muted">
+    Submit your complaint and track replies from our support team.
+  </p>
+
+  <form onSubmit={submitSupportTicket}>
+    <label>Issue Category</label>
+    <select
+      value={ticketCategory}
+      onChange={e => setTicketCategory(e.target.value)}
+      required
+    >
+      <option>Membership and payments</option>
+      <option>eBook downloads</option>
+      <option>Referral commissions</option>
+      <option>Wallet and withdrawals</option>
+      <option>Rank upgrades</option>
+      <option>Others</option>
+    </select>
+
+    <label>Complaint Subject</label>
+    <input
+      type="text"
+      value={ticketSubject}
+      onChange={e => setTicketSubject(e.target.value)}
+      placeholder="Enter your complaint subject"
+      minLength={3}
+      maxLength={120}
+      required
+    />
+
+    <label>Describe Your Complaint</label>
+    <textarea
+      value={ticketComplaint}
+      onChange={e => setTicketComplaint(e.target.value)}
+      placeholder="Explain your issue in detail..."
+      minLength={10}
+      maxLength={5000}
+      rows={5}
+      required
+    />
+
+    <button className="primary" type="submit" disabled={ticketBusy}>
+      {ticketBusy ? 'Submitting...' : 'Submit Complaint'}
+    </button>
+  </form>
+</section>
+      <section className="panel">
+  <p className="eyebrow">TICKET TRACKING</p>
+  <h2>My Complaints</h2>
+  <p className="muted">
+    Check your complaint status and view replies from our support team.
+  </p>
+
+  {supportTickets.length === 0 ? (
+    <p className="muted">You have not submitted any complaints yet.</p>
+  ) : (
+    <div className="activity-list">
+      {supportTickets.map(ticket => (
+        <article className="activity-item" key={ticket.id}>
+          <div className="activity-content">
+            <strong>Ticket #{ticket.ticket_number}</strong>
+            <p>{ticket.subject}</p>
+            <small>
+              {ticket.category} · {ticket.status} ·
+              {' '}{new Date(ticket.created_at).toLocaleDateString('en-IN')}
+            </small>
+          </div>
+
+          <button
+            type="button"
+            className="mini outline"
+            onClick={() => loadTicketReplies(ticket)}
+          >
+            View Conversation
+          </button>
+        </article>
+      ))}
+    </div>
+  )}
+
+  {selectedTicket && (
+    <div className="panel">
+      <h3>Ticket #{selectedTicket.ticket_number}</h3>
+      <p><strong>Subject:</strong> {selectedTicket.subject}</p>
+      <p><strong>Status:</strong> {selectedTicket.status}</p>
+
+      <div className="activity-item">
+        <div className="activity-content">
+          <strong>Original Complaint</strong>
+          <p>{selectedTicket.complaint}</p>
+        </div>
+      </div>
+
+      <h3>Conversation</h3>
+
+      {ticketReplies.length === 0 ? (
+        <p className="muted">No replies yet. Our support team will respond here.</p>
+      ) : (
+        <div className="activity-list">
+          {ticketReplies.map(reply => (
+            <article className="activity-item" key={reply.id}>
+              <div className="activity-content">
+                <strong>
+                  {reply.sender_id === selectedTicket.member_id
+                    ? (profile?.role === 'admin' ? 'Customer' : 'You')
+                    : (profile?.role === 'admin' ? 'Admin' : 'Support Team')}
+                </strong>
+                <p>{reply.message}</p>
+                <small>
+                  {new Date(reply.created_at).toLocaleString('en-IN')}
+                </small>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      <form onSubmit={sendTicketReply}>
+        <label>Write a Reply</label>
+        <textarea
+          value={ticketReply}
+          onChange={e => setTicketReply(e.target.value)}
+          placeholder="Write your message..."
+          rows={3}
+          maxLength={5000}
+          required
+        />
+
+        <button className="primary" type="submit" disabled={ticketBusy}>
+          {ticketBusy ? 'Sending...' : 'Send Reply'}
+        </button>
+      </form>
+
+      <button
+        type="button"
+        className="outline"
+        onClick={() => {
+          setSelectedTicket(null);
+          setTicketReplies([]);
+        }}
+      >
+        Close Conversation
+      </button>
+    </div>
+  )}
+</section>
       <section className="panel recent-activity" id="activity">
   <p className="eyebrow">YOUR DASHBOARD UPDATES</p>
   <h2>Recent Activity & Notifications</h2>
@@ -1426,7 +1712,56 @@ const hideBuyButton = hasVerifiedPurchase;
         <td colSpan="5" className="muted">No orders.</td>
   </tr>
 )}
-</tbody></table></div></section></>}
+      </tbody></table></div></section>
+
+<section className="panel admin">
+  <p className="eyebrow">ADMIN CONTROL</p>
+  <h2>Customer Support & Complaints</h2>
+  <p className="muted">
+    Review customer complaints, respond to tickets and manage their status.
+  </p>
+
+  {supportTickets.length === 0 ? (
+    <p className="muted">No customer complaints yet.</p>
+  ) : (
+    <div className="activity-list">
+      {supportTickets.map(ticket => (
+        <article className="activity-item" key={ticket.id}>
+          <div className="activity-content">
+            <strong>Ticket #{ticket.ticket_number}</strong>
+            <p>{ticket.subject}</p>
+            <small>
+              Customer ID: {ticket.member_id.slice(0, 8)}
+            </small>
+            <small>Category: {ticket.category}</small>
+          </div>
+
+          <div className="activity-content">
+            <label>Complaint Status</label>
+            <select
+              value={ticket.status}
+              onChange={e => updateTicketStatus(ticket.id, e.target.value)}
+            >
+              <option value="Submitted">Submitted</option>
+              <option value="In Review">In Review</option>
+              <option value="Replied">Replied</option>
+              <option value="Resolved">Resolved</option>
+            </select>
+
+            <button
+              type="button"
+              className="mini outline"
+              onClick={() => loadTicketReplies(ticket)}
+            >
+              Open Complaint
+            </button>
+          </div>
+        </article>
+      ))}
+    </div>
+  )}
+</section>
+</>}
     </>}
     <section className="legal"><b>Important:</b> SUCCESS SKILL must sell a genuine eBook at a fair, disclosed price. Referral rewards, if offered, must be tied to verified retail sales and a compensation plan reviewed for compliance with Indian law. No payment is made merely for recruitment, joining, or upgrading a rank.</section>
     <footer>© {new Date().getFullYear()} SUCCESS SKILL · Built for learning and genuine product sales</footer>
