@@ -14,6 +14,9 @@ export default function App(){
   const [adminOrders,setAdminOrders] = useState([]);
   const [email,setEmail] = useState('');
   const [password,setPassword] = useState('');
+  const [resetMode, setResetMode] = useState(false);
+  const [recoveryReady, setRecoveryReady] = useState(false);
+const [newPassword, setNewPassword] = useState('');
   const [fullName,setFullName] = useState('');
   const [referral,setReferral] = useState(new URLSearchParams(location.search).get('ref') || '');
   const [mode,setMode] = useState('login');
@@ -38,7 +41,13 @@ const [payoutReferences, setPayoutReferences] = useState({});
   useEffect(()=>{
     if(!configured) return;
     supabase.auth.getSession().then(({data})=>setSession(data.session));
-    const {data:{subscription}} = supabase.auth.onAuthStateChange((_e,s)=>setSession(s));
+    const {data:{subscription}} = supabase.auth.onAuthStateChange((event, s) => {
+  setSession(s);
+
+  if (event === 'PASSWORD_RECOVERY') {
+    setRecoveryReady(true);
+  }
+}); 
     return ()=>subscription.unsubscribe();
   },[]);
   useEffect(()=>{ if(session) load(); else {setProfile(null);setOrders([]);setCommissions([])} },[session])
@@ -183,6 +192,63 @@ async function authSubmit(e){
   setBusy(false);
     } 
   }
+  async function sendPasswordReset(e) {
+  e.preventDefault();
+  setBusy(true);
+  setMessage('');
+
+  try {
+    if (!email.trim()) {
+      throw new Error('Please enter your registered email address.');
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email.trim(),
+      {
+        redirectTo: window.location.origin
+      }
+    );
+
+    if (error) throw error;
+
+    setMessage('If an account exists for this email, a password reset link has been sent. Please check your inbox.');
+  } catch (error) {
+    setMessage(error.message || 'Could not send password reset email.');
+  } finally {
+    setBusy(false);
+  }
+  }
+  async function updatePassword(e) {
+  e.preventDefault();
+  setBusy(true);
+  setMessage('');
+
+  try {
+    if (newPassword.length < 8) {
+      throw new Error('Password must contain at least 8 characters.');
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) throw error;
+
+    await supabase.auth.signOut();
+
+    setNewPassword('');
+    setPassword('');
+    setResetMode(false);
+    setMode('login');
+    setMessage('Password updated successfully. Please log in with your new password.');
+
+  } catch (error) {
+    setMessage(error.message || 'Could not update password.');
+  } finally {
+    setBusy(false);
+  }
+  }
+  
   async function loadRazorpay(){
     if(window.Razorpay) return true;
     return await new Promise(resolve=>{
@@ -473,7 +539,68 @@ const hideBuyButton = hasVerifiedPurchase;
     <header><div className="brand">SUCCESS <b>SKILL</b></div>{session?<button className="primary" onClick={signOut}>Sign out</button>:<span className="tag">EBOOK PLATFORM</span>}</header>
     <section className="hero"><p className="eyebrow">LEARN · APPLY · PROGRESS</p><h1>Your next chapter<br/><em>starts here.</em></h1><p>One digital eBook. A clear path to learning and measurable sales performance.</p></section>
     {message && <div className="notice" role="status">{message}</div>}
-    {!session ? <section className="auth panel">
+    {(!session || recoveryReady) ? <section className="auth panel"> 
+      {recoveryReady && (
+  <div>
+    <h2>Create New Password</h2>
+    <form onSubmit={updatePassword}>
+      <label>
+        New password
+        <input
+          type="password"
+          required
+          minLength={8}
+          value={newPassword}
+          onChange={e => setNewPassword(e.target.value)}
+          placeholder="Enter new password"
+          autoComplete="new-password"
+        />
+      </label>
+
+      <button className="primary" disabled={busy}>
+        {busy ? 'Please wait…' : 'Update Password'}
+      </button>
+    </form>
+  </div>
+)}
+      {resetMode && !recoveryReady && (
+  <div>
+    <h2>Reset Your Password</h2>
+    <p className="muted">
+      Enter your registered email address to receive a password reset link.
+    </p>
+
+    <form onSubmit={sendPasswordReset}>
+      <label>
+        Email address
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="Enter your registered email"
+          autoComplete="email"
+        />
+      </label>
+
+      <button className="primary" disabled={busy}>
+        {busy ? 'Please wait…' : 'Send Reset Link'}
+      </button>
+    </form>
+
+    <button
+      type="button"
+      className="outline dark"
+      onClick={() => {
+        setResetMode(false);
+        setMessage('');
+      }}
+    >
+      Back to Login
+    </button>
+  </div>
+)}
+      {!recoveryReady && !resetMode && ( 
       <div className="tabs"><button className={mode==='login'?'tab active':'tab'} onClick={()=>setMode('login')}>Login</button><button className={mode==='signup'?'tab active':'tab'} onClick={()=>setMode('signup')}>Create account</button></div>
       <h2>{mode==='login'?'Welcome back':'Join SUCCESS SKILL'}</h2>
       <form onSubmit={authSubmit}>
@@ -482,8 +609,21 @@ const hideBuyButton = hasVerifiedPurchase;
         <label>Password<input type="password" minLength="8" required value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==='login'?'current-password':'new-password'}/></label>
         {mode==='signup'&&<label>Referral code (required)<input required readOnly={Boolean(new URLSearchParams(location.search).get('ref'))} value={referral} onChange={e=>setReferral(e.target.value)} placeholder="Enter referral code"/></label>} 
         <button className="primary" disabled={busy}>{busy?'Please wait…':mode==='login'?'Login':'Create account'}</button>
+          {mode === 'login' && (
+  <button
+    type="button"
+    className="outline dark"
+    onClick={() => {
+      setResetMode(true);
+      setMessage('');
+    }}
+  >
+    Forgot Password?
+  </button>
+)}
       </form>
       <p className="muted tiny">Use a valid email. Your account may require email confirmation depending on Supabase settings.</p>
+          )}
     </section> : <><section className="welcome"><div><p className="eyebrow">MEMBER DASHBOARD</p><h2>Hello, {profile?.full_name || session.user.email}</h2><p className="muted">
   Referral code: <b>{profile?.referral_code || 'Preparing…'}</b>
 </p>
