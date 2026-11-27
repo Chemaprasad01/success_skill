@@ -15,6 +15,9 @@ export default function App(){
   const [adminOrders,setAdminOrders] = useState([]);
   const [email,setEmail] = useState('');
   const [password,setPassword] = useState('');
+  const [resetMode, setResetMode] = useState(false);
+const [recoveryReady, setRecoveryReady] = useState(false);
+const [newPassword, setNewPassword] = useState('');
   const [fullName,setFullName] = useState('');
   const [referral,setReferral] = useState(new URLSearchParams(location.search).get('ref') || '');
   const [mode,setMode] = useState('login');
@@ -74,7 +77,13 @@ const mySupportTickets = supportTickets.filter(
   useEffect(()=>{
     if(!configured) return;
     supabase.auth.getSession().then(({data})=>setSession(data.session));
-    const {data:{subscription}} = supabase.auth.onAuthStateChange((_e,s)=>setSession(s));
+    const {data:{subscription}} = supabase.auth.onAuthStateChange((event, s) => {
+  setSession(s);
+
+  if (event === 'PASSWORD_RECOVERY') {
+    setRecoveryReady(true);
+  }
+}); 
     return ()=>subscription.unsubscribe();
   },[]);
   useEffect(()=>{ if(session) load(); else {setProfile(null);setOrders([]);setCommissions([])} },[session])
