@@ -443,6 +443,33 @@ async function removeAvatar() {
   }
 }
 
+async function sendPasswordReset(e) {
+  e.preventDefault();
+  setBusy(true);
+  setMessage('');
+
+  try {
+    if (!email.trim()) {
+      throw new Error('Please enter your registered email address.');
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email.trim(),
+      {
+        redirectTo: window.location.origin
+      }
+    );
+
+    if (error) throw error;
+
+    setMessage('If an account exists for this email, a password reset link has been sent. Please check your inbox.');
+  } catch (error) {
+    setMessage(error.message || 'Could not send password reset email.');
+  } finally {
+    setBusy(false);
+  }
+}
+
 async function authSubmit(e) {
     e.preventDefault(); setBusy(true); setMessage('');
     try{
