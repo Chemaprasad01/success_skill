@@ -688,3 +688,71 @@ header button {
     font-size: 12px;
   }
 }
+
+/* Recent Activity — Compact scrollable layout */
+.recent-activity {
+  padding: 20px;
+}
+
+.activity-list {
+  max-height: 430px;
+  overflow-y: auto;
+  padding-right: 7px;
+  margin-top: 14px;
+  gap: 9px;
+  scrollbar-width: thin;
+  scrollbar-color: #806b3d #202126;
+}
+
+.activity-item {
+  padding: 11px 13px;
+  gap: 11px;
+  border-radius: 11px;
+}
+
+.activity-icon {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  font-size: 17px;
+}
+
+.activity-content strong {
+  font-size: 13px;
+}
+
+.activity-content p {
+  font-size: 12px;
+  margin: 4px 0;
+}
+
+.activity-content small {
+  font-size: 10px;
+}
+
+.activity-amount {
+  font-size: 13px;
+}
+
+.activity-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.activity-list::-webkit-scrollbar-thumb {
+  background: #806b3d;
+  border-radius: 10px;
+}
+
+@media (max-width: 600px) {
+  .recent-activity {
+    padding: 16px;
+  }
+
+  .activity-list {
+    max-height: 420px;
+  }
+
+  .activity-item {
+    padding: 10px;
+  }
+}
