@@ -757,20 +757,7 @@ const hideBuyButton = hasVerifiedPurchase;
     {profile?.rank || 'Not Activated'}
   </span>
 </section>
-      <div className="stats">
-  <article className="stat">
-    <small>Verified commissions</small>
-    <strong>{money(totalCommission)}</strong>
-  </article>
-  <article className="stat">
-    <small>My orders</small>
-    <strong>{orders.length}</strong>
-  </article>
-  <article className="stat">
-    <small>Current rank</small>
-    <strong className="ranktext">{profile?.rank || 'Not Activated'}</strong>
-  </article>
-        </div>
+      
       <section className="panel profile-details" id="profile-details"> 
   <p className="eyebrow">ACCOUNT INFORMATION</p>
   <h2>My Profile Details</h2>
@@ -810,7 +797,21 @@ const hideBuyButton = hasVerifiedPurchase;
     </div>
   </div>
 </section>
-        
+        <div className="stats">
+  <article className="stat">
+    <small>Verified commissions</small>
+    <strong>{money(totalCommission)}</strong>
+  </article>
+  <article className="stat">
+    <small>My orders</small>
+    <strong>{orders.length}</strong>
+  </article>
+  <article className="stat">
+    <small>Current rank</small>
+    <strong className="ranktext">{profile?.rank || 'Not Activated'}</strong>
+  </article>
+        </div>
+      
       <section className="panel wallet-panel" 
   id="wallets">
   <p className="eyebrow">MY WALLETS</p>
