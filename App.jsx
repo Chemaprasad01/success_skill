@@ -43,6 +43,29 @@ const [ticketSubject, setTicketSubject] = useState('');
 const [ticketComplaint, setTicketComplaint] = useState('');
 const [ticketReply, setTicketReply] = useState('');
 const [ticketBusy, setTicketBusy] = useState(false);
+  // Admin complaint filters
+const [adminTicketStatusFilter, setAdminTicketStatusFilter] = useState('All');
+const [adminTicketCategoryFilter, setAdminTicketCategoryFilter] = useState('All');
+  const filteredAdminTickets = supportTickets
+  .filter(ticket =>
+    adminTicketStatusFilter === 'All' ||
+    ticket.status === adminTicketStatusFilter
+  )
+  .filter(ticket =>
+    adminTicketCategoryFilter === 'All' ||
+    ticket.category === adminTicketCategoryFilter
+  )
+  .sort((a, b) => {
+    const priority = {
+      'Submitted': 1,
+      'In Review': 2,
+      'Replied': 3,
+      'Resolved': 4
+    };
+
+    return (priority[a.status] || 5) - (priority[b.status] || 5) ||
+      new Date(b.created_at) - new Date(a.created_at);
+  });
 
 
   useEffect(()=>{
@@ -1727,12 +1750,43 @@ const hideBuyButton = hasVerifiedPurchase;
   <p className="muted">
     Review customer complaints, respond to tickets and manage their status.
   </p>
+  <div className="filter-row">
+  <div>
+    <label>Filter by Status</label>
+    <select
+      value={adminTicketStatusFilter}
+      onChange={e => setAdminTicketStatusFilter(e.target.value)}
+    >
+      <option value="All">All Statuses</option>
+      <option value="Submitted">Submitted</option>
+      <option value="In Review">In Review</option>
+      <option value="Replied">Replied</option>
+      <option value="Resolved">Resolved</option>
+    </select>
+  </div>
 
-  {supportTickets.length === 0 ? (
+  <div>
+    <label>Filter by Category</label>
+    <select
+      value={adminTicketCategoryFilter}
+      onChange={e => setAdminTicketCategoryFilter(e.target.value)}
+    >
+      <option value="All">All Categories</option>
+      <option value="Membership and payments">Membership and payments</option>
+      <option value="eBook downloads">eBook downloads</option>
+      <option value="Referral commissions">Referral commissions</option>
+      <option value="Wallet and withdrawals">Wallet and withdrawals</option>
+      <option value="Rank upgrades">Rank upgrades</option>
+      <option value="Others">Others</option>
+    </select>
+  </div>
+</div>
+
+  {filteredAdminTickets.length === 0 ? (
     <p className="muted">No customer complaints yet.</p>
   ) : (
     <div className="activity-list">
-      {supportTickets.map(ticket => (
+      {filteredAdminTickets.map(ticket => ( 
         <article className="activity-item" key={ticket.id}>
           <div className="activity-content">
             <strong>Ticket #{ticket.ticket_number}</strong>
