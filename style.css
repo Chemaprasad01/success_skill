@@ -809,3 +809,16 @@ header button {
   width: 100%;
 }
 
+/* Transaction History — independent scroll area */
+.transaction-history-scroll {
+  height: 320px;
+  overflow-y: auto;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #806b3d #202126;
+}
+
+.transaction-history-scroll table {
+  width: 100%;
+}
+
