@@ -371,6 +371,40 @@ const mainWalletAvailable = Math.max(
   mainWalletCredits - paidWithdrawals - reservedWithdrawals
 );
 
+const transactionHistory = [
+  ...walletTransactions.map(t => ({
+    id: `wallet-${t.id}`,
+    date: t.created_at,
+    title: t.wallet_type === 'self_upgrade'
+      ? 'Rank Upgrade Credit'
+      : 'Main Wallet Credit',
+    wallet: t.wallet_type === 'self_upgrade'
+      ? 'Rank Upgrade Credit'
+      : 'Main Wallet',
+    amount: Number(t.amount_paise || 0),
+    direction: 'credit',
+    status: 'Completed'
+  })),
+
+  ...withdrawalDebits.map(d => {
+    const relatedWithdrawal = withdrawals.find(
+      w => w.id === d.withdrawal_request_id
+    );
+
+    return {
+      id: `debit-${d.id}`,
+      date: d.paid_at || relatedWithdrawal?.paid_at || relatedWithdrawal?.created_at,
+      title: 'Withdrawal Paid',
+      wallet: 'Main Wallet',
+      amount: Number(d.amount_paise || 0),
+      direction: 'debit',
+      status: 'Completed'
+    };
+  })
+].sort((a, b) =>
+  new Date(b.date || 0) - new Date(a.date || 0)
+);
+  
 const rankUpgradeCredits = walletTransactions
   .filter(t => t.wallet_type === 'self_upgrade')
   .reduce((sum, t) => sum + Number(t.amount_paise || 0), 0);
@@ -848,6 +882,52 @@ const hideBuyButton = hasVerifiedPurchase;
     Rank Upgrade Credit is separate and cannot be withdrawn.
   </p>
 </section>
+      <section className="panel" id="transactions">
+  <p className="eyebrow">WALLET ACTIVITY</p>
+  <h2>Transaction History</h2>
+  <p className="tiny muted">
+    Review credits added to your wallets and completed withdrawals.
+  </p>
+
+  <div className="tablewrap transaction-history-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Transaction</th>
+          <th>Wallet</th>
+          <th>Amount</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {transactionHistory.length ? transactionHistory.map(t => (
+          <tr key={t.id}>
+            <td>
+              {t.date
+                ? new Date(t.date).toLocaleDateString('en-IN')
+                : '—'}
+            </td>
+            <td>{t.title}</td>
+            <td>{t.wallet}</td>
+            <td>
+              {t.direction === 'credit' ? '+' : '-'}
+              {money(t.amount / 100)}
+            </td>
+            <td>{t.status}</td>
+          </tr>
+        )) : (
+          <tr>
+            <td colSpan="5" className="muted">
+              No transactions recorded yet.
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</section>
+      
 <section className="panel">
   <div className="sectionhead">
     <div>
