@@ -937,6 +937,31 @@ const hideBuyButton = hasVerifiedPurchase;
     <section className="hero"><p className="eyebrow">LEARN · APPLY · PROGRESS</p><h1>Your next chapter<br/><em>starts here.</em></h1><p>One digital eBook. A clear path to learning and measurable sales performance.</p></section>
     {message && <div className="notice" role="status">{message}</div>}
     {(!session || recoveryReady) ? <section className="auth panel"> 
+      {recoveryReady && (
+  <div>
+    <h2>Create New Password</h2>
+    <form onSubmit={updatePassword}>
+      <label>
+        New password
+        <input
+          type="password"
+          required
+          minLength={8}
+          value={newPassword}
+          onChange={e => setNewPassword(e.target.value)}
+          placeholder="Enter new password"
+          autoComplete="new-password"
+        />
+      </label>
+
+      <button className="primary" disabled={busy}>
+        {busy ? 'Please wait…' : 'Update Password'}
+      </button>
+    </form>
+  </div>
+)}
+      {!recoveryReady && !resetMode && (
+    <>
       <div className="tabs"><button className={mode==='login'?'tab active':'tab'} onClick={()=>setMode('login')}>Login</button><button className={mode==='signup'?'tab active':'tab'} onClick={()=>setMode('signup')}>Create account</button></div>
       <h2>{mode==='login'?'Welcome back':'Join SUCCESS SKILL'}</h2>
       <form onSubmit={authSubmit}>
@@ -945,8 +970,61 @@ const hideBuyButton = hasVerifiedPurchase;
         <label>Password<input type="password" minLength="8" required value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==='login'?'current-password':'new-password'}/></label>
         {mode==='signup'&&<label>Referral code (required)<input required readOnly={Boolean(new URLSearchParams(location.search).get('ref'))} value={referral} onChange={e=>setReferral(e.target.value)} placeholder="Enter referral code"/></label>} 
         <button className="primary" disabled={busy}>{busy?'Please wait…':mode==='login'?'Login':'Create account'}</button>
-      </form>
+
+{mode === 'login' && (
+  <button
+    type="button"
+    className="outline dark"
+    onClick={() => {
+      setResetMode(true);
+      setMessage('');
+    }}
+  >
+    Forgot Password?
+  </button>
+)}
+</form>
       <p className="muted tiny">Use a valid email. Your account may require email confirmation depending on Supabase settings.</p>
+     </>
+      )}
+      {resetMode && !recoveryReady && (
+  <div>
+    <h2>Reset Your Password</h2>
+    <p className="muted">
+      Enter your registered email address to receive a password reset link.
+    </p>
+
+    <form onSubmit={sendPasswordReset}>
+      <label>
+        Email address
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="Enter your registered email"
+          autoComplete="email"
+        />
+      </label>
+
+      <button className="primary" disabled={busy}>
+        {busy ? 'Please wait…' : 'Send Reset Link'}
+      </button>
+
+    </form>
+
+    <button
+      type="button"
+      className="outline dark"
+      onClick={() => {
+        setResetMode(false);
+        setMessage('');
+      }}
+    >
+      Back to Login
+    </button>
+  </div>
+)}
     </section> : <>
 <section className="welcome profile-welcome" id="overview">
   <div className="profile-welcome-main">
