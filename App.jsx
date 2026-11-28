@@ -1082,8 +1082,19 @@ const canRefer =
       <h2>Hello, {profile?.full_name || session.user.email}</h2>
 
       <p className="muted">
-        Welcome to your SUCCESS SKILL dashboard.
-      </p>
+  Welcome to your SUCCESS SKILL dashboard.
+</p>
+
+{membershipActive ? (
+  <p className="membership-status active">
+    ✓ Membership Active
+  </p>
+) : (
+  <p className="membership-status inactive">
+    Membership Not Activated — Purchase ₹600 membership
+    and wait for payment verification.
+  </p>
+)} 
 
             {canRefer ? (
         <>
@@ -1142,9 +1153,13 @@ const canRefer =
     </div>
 
     <div className="profile-detail-item">
-      <small>Referral Code</small>
-      <strong>{profile?.referral_code || 'Preparing…'}</strong>
-    </div>
+  <small>Referral Code</small>
+  <strong>
+    {canRefer
+      ? (profile?.referral_code || 'Preparing…')
+      : 'Locked — Activate membership'}
+  </strong>
+</div>
 
     <div className="profile-detail-item">
       <small>Current Rank</small>
@@ -1370,85 +1385,97 @@ const canRefer =
     documented genuine retail-sales criteria and administrator verification.
   </p>
 </section>
-      <section className="panel" 
-  id="referrals">
-  <p className="eyebrow">MY NETWORK</p>
-  <h2>My Referral Team</h2>
 
-  <div className="stats referral-analytics">
-  <article className="stat">
-    <small>Total Referrals</small>
-    <strong>{referrals.length}</strong>
-  </article>
+{canRefer ? (
+  <section className="panel" id="referrals">
+    <p className="eyebrow">MY NETWORK</p>
+    <h2>My Referral Team</h2>
 
-  <article className="stat">
-    <small>Completed Payments</small>
-    <strong>
-      {referrals.filter(r => r.payment_completed).length}
-    </strong>
-  </article>
+    <div className="stats referral-analytics">
+      <article className="stat">
+        <small>Total Referrals</small>
+        <strong>{referrals.length}</strong>
+      </article>
 
-  <article className="stat">
-    <small>Pending Payments</small>
-    <strong>
-      {referrals.filter(r => !r.payment_completed).length}
-    </strong>
-  </article>
+      <article className="stat">
+        <small>Completed Payments</small>
+        <strong>
+          {referrals.filter(r => r.payment_completed).length}
+        </strong>
+      </article>
 
-  <article className="stat">
-    <small>Completion Rate</small>
-    <strong>
-      {referrals.length
-        ? Math.round(
-            referrals.filter(r => r.payment_completed).length /
-            referrals.length * 100
-          )
-        : 0}%
-    </strong>
-  </article>
-</div> 
+      <article className="stat">
+        <small>Pending Payments</small>
+        <strong>
+          {referrals.filter(r => !r.payment_completed).length}
+        </strong>
+      </article>
 
-  {ranks.map(rank => {
-    const members = referrals.filter(
-      r => String(r.referred_user_rank || '').toLowerCase()
-        === rank.toLowerCase()
-    );
+      <article className="stat">
+        <small>Completion Rate</small>
+        <strong>
+          {referrals.length
+            ? Math.round(
+                referrals.filter(r => r.payment_completed).length /
+                referrals.length * 100
+              )
+            : 0}%
+        </strong>
+      </article>
+    </div>
 
-    return (
-      <details key={rank} className="referral-group">
-        <summary>
-          <b>{rank}</b>
-          <span>{members.length} customers</span>
-        </summary>
+    {ranks.map(rank => {
+      const members = referrals.filter(
+        r => String(r.referred_user_rank || '').toLowerCase()
+          === rank.toLowerCase()
+      );
 
-        {members.length ? (
-          <div className="tablewrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Customer</th>
-                  <th>Payment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {members.map(member => (
-                  <tr key={member.referred_user_id}>
-                    <td>{member.referred_user_name || 'Member'}</td>
-                    <td>
-                      {member.payment_completed ? 'Completed' : 'Pending'}
-                    </td>
+      return (
+        <details key={rank} className="referral-group">
+          <summary>
+            <b>{rank}</b>
+            <span>{members.length} customers</span>
+          </summary>
+
+          {members.length ? (
+            <div className="tablewrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Customer</th>
+                    <th>Payment</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="muted tiny">No customers in this rank yet.</p>
-        )}
-      </details>
-    );
-  })}
-</section>
+                </thead>
+                <tbody>
+                  {members.map(member => (
+                    <tr key={member.referred_user_id}>
+                      <td>{member.referred_user_name || 'Member'}</td>
+                      <td>
+                        {member.payment_completed ? 'Completed' : 'Pending'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="muted tiny">No customers in this rank yet.</p>
+          )}
+        </details>
+      );
+    })}
+  </section>
+) : (
+  <section className="panel" id="referrals">
+    <p className="eyebrow">MY NETWORK</p>
+    <h2>Referral access locked</h2>
+    <p className="muted">
+      Purchase the ₹600 membership and wait for payment
+      verification to unlock your referral team.
+    </p>
+  </section>
+)}
+
       <section className="panel">
   <p className="eyebrow">PAYOUT</p>
   <h2>Request withdrawal</h2>
@@ -1588,9 +1615,52 @@ const canRefer =
 
       <section className="panel"
         id="orders"><h2>My orders</h2><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th><th>Retail verified</th></tr></thead><tbody>{orders.length?orders.map(o=><tr key={o.id}><td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(o.amount_paise || 0) / 100)}</td><td><span className={'status '+o.status}>{o.status}</span></td><td>{o.retail_verified?'Yes':'Pending'}</td></tr>):<tr><td colSpan="4" className="muted">No orders yet.</td></tr>}</tbody></table></div></section>
-      <section className="panel"
-        id="commissions"><h2>Commission history</h2><p className="tiny muted">Commissions are calculated only on administrator-verified qualifying retail sales under a legally reviewed plan.</p><div className="tablewrap commission-scroll"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{commissions.length?commissions.map(c=><tr key={c.id}><td>{new Date(c.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(c.commission_paise || 0) / 100)}</td>
-<td>{c.payout_destination}</td></tr>):<tr><td colSpan="3" className="muted">No commissions recorded.</td></tr>}</tbody></table></div></section>
+      
+{canRefer ? (
+  <section className="panel" id="commissions">
+    <h2>Commission history</h2>
+    <p className="tiny muted">
+      Commissions are calculated only on administrator-verified
+      qualifying retail sales under a legally reviewed plan.
+    </p>
+
+    <div className="tablewrap commission-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {commissions.length ? commissions.map(c => (
+            <tr key={c.id}>
+              <td>{new Date(c.created_at).toLocaleDateString('en-IN')}</td>
+              <td>{money(Number(c.commission_paise || 0) / 100)}</td>
+              <td>{c.payout_destination}</td>
+            </tr>
+          )) : (
+            <tr>
+              <td colSpan="3" className="muted">
+                No commissions recorded.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </section>
+) : (
+  <section className="panel" id="commissions">
+    <h2>Commission history locked</h2>
+    <p className="muted">
+      Activate your ₹600 membership and wait for payment
+      verification to unlock commission history.
+    </p>
+  </section>
+)}
+
     <section className="panel" id="support">
   <p className="eyebrow">CUSTOMER SUPPORT</p>
   <h2>Help & Support Center</h2>
