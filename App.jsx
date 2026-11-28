@@ -888,6 +888,10 @@ const isPlatinumOrHigher =
   (rankPriority[profile?.rank] || 0) >= rankPriority.Platinum;
 
 const hideBuyButton = hasVerifiedPurchase;
+  const membershipActive = profile?.payment_completed === true;
+
+const canRefer =
+  profile?.role === 'admin' || membershipActive;
   
   if(!configured) return <main className="shell"><header><div className="brand">SUCCESS <b>SKILL</b></div><span className="tag">SETUP REQUIRED</span></header><section className="hero"><p className="eyebrow">DIGITAL LEARNING PLATFORM</p><h1>Build skills.<br/><em>Grow with purpose.</em></h1><p>Connect your Supabase project to activate customer accounts, orders and the admin dashboard.</p></section><section className="panel"><h2>Connect Supabase</h2><ol><li>Create a Supabase project.</li><li>Copy <b>.env.example</b> to <b>.env</b>.</li><li>Add your Project URL and anon key.</li><li>Run the SQL setup in <b>supabase/schema.sql</b>.</li></ol><p className="muted">Never put your Supabase service-role key in this frontend.</p></section><footer>SUCCESS SKILL · Starter website</footer></main>;
   return <main className="shell">
@@ -1081,33 +1085,39 @@ const hideBuyButton = hasVerifiedPurchase;
         Welcome to your SUCCESS SKILL dashboard.
       </p>
 
-      <p className="muted">
-        Referral code: <b>{profile?.referral_code || 'Preparing…'}</b>
-      </p>
+            {canRefer ? (
+        <>
+          <p className="muted">
+            Referral code: <b>{profile?.referral_code || 'Preparing…'}</b>
+          </p>
 
-      {profile?.referral_code && (
-        <div>
-          <p className="muted">Your personal referral link:</p>
-
-          <a
-            href={`${window.location.origin}/?ref=${encodeURIComponent(profile.referral_code)}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {window.location.origin}/?ref={profile.referral_code}
-          </a>
-
-          <button
-            className="primary"
-            onClick={() => navigator.clipboard.writeText(
-              `${window.location.origin}/?ref=${encodeURIComponent(profile.referral_code)}`
-            ).then(() => setMessage('Referral link copied!'))
-             .catch(() => setMessage('Unable to copy. Please copy the link manually.'))}
-          >
-            Copy referral link
-          </button>
-        </div>
-      )}
+          {profile?.referral_code && (
+            <div>
+              <p className="muted">Your personal referral link:</p>
+              <a
+                href={`${window.location.origin}/?ref=${encodeURIComponent(profile.referral_code)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {window.location.origin}/?ref={profile.referral_code}
+              </a>
+              <button
+                className="primary"
+                onClick={() => navigator.clipboard.writeText(
+                  `${window.location.origin}/?ref=${encodeURIComponent(profile.referral_code)}`
+                ).then(() => setMessage('Referral link copied!'))
+                 .catch(() => setMessage('Unable to copy. Please copy the link manually.'))}
+              >
+                Copy referral link
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="muted">
+          Referral access is locked. Activate your ₹600 membership first.
+        </p>
+      )} 
     </div>
   </div>
 
