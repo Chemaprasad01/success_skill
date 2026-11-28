@@ -673,7 +673,7 @@ const recentActivities = [
   description: r.referred_user_name || 'A new member joined your team'
 })), 
 
-  ...(canRefer ? commissions.map(c => ({
+ ...(profile?.role === 'admin' || profile?.payment_completed === true ? commissions.map(c => ({
   id: `commission-${c.id}`,
   type: 'commission',
   title: 'Commission Received',
