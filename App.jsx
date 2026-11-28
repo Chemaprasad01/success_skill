@@ -506,6 +506,13 @@ async function authSubmit(e) {
     e.preventDefault(); setBusy(true); setMessage('');
     try{
       if(mode==='signup'){
+        if (!fullName.trim()) {
+  throw new Error('Please enter your full name.');
+}
+
+if (!referral.trim()) {
+  throw new Error('Referral code is required.');
+}
         const {error} = await supabase.auth.signUp({email,password,options:{data:{full_name:fullName,referral_code:referral.trim()||null}}});
         if(error) throw error;
         setMessage('Account created. Check your email if confirmation is enabled, then sign in.');
