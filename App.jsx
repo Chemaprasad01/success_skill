@@ -717,12 +717,18 @@ async function sendWithdrawalOtp() {
     }
 
     if (payoutMethod === 'upi') {
-      if (!upiId.trim()) throw new Error('Enter your UPI ID.');
-    } else {
-      if (!accountHolder.trim() || !accountNumber.trim() || !ifsc.trim()) {
-        throw new Error('Complete all bank details.');
-      }
-    }
+  if (!accountHolderName.trim()) {
+    throw new Error('Enter your UPI account holder name.');
+  }
+
+  if (!upiId.trim()) {
+    throw new Error('Enter your UPI ID.');
+  }
+} else {
+  if (!accountHolder.trim() || !accountNumber.trim() || !ifsc.trim()) {
+    throw new Error('Complete all bank details.');
+  }
+    } 
 
     const { data, error } = await supabase.functions.invoke(
       'send-withdrawal-otp-'
