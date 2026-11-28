@@ -666,22 +666,21 @@ const recentActivities = [
     amount: o.amount_paise
   })),
 
-  ...referrals.map(r => ({
-    id: `referral-${r.id}`,
-    type: 'referral',
-    title: 'New Referral',
-    description: r.full_name || r.email || 'A new member joined your team',
-    date: r.created_at
-  })),
+ ...referrals.map(r => ({
+  id: `referral-${r.referred_user_id}`,
+  type: 'referral',
+  title: 'New Referral',
+  description: r.referred_user_name || 'A new member joined your team'
+})), 
 
-  ...commissions.map(c => ({
-    id: `commission-${c.id}`,
-    type: 'commission',
-    title: 'Commission Received',
-    description: `Commission #${c.sequence_number || '—'} · ${c.payout_destination || 'Wallet'}`,
-    date: c.created_at,
-    amount: c.commission_paise
-  })),
+  ...(canRefer ? commissions.map(c => ({
+  id: `commission-${c.id}`,
+  type: 'commission',
+  title: 'Commission Received',
+  description: `Commission #${c.sequence_number || '—'} · ${c.payout_destination || 'Wallet'}`,
+  date: c.created_at,
+  amount: c.commission_paise
+})) : []), 
 
   ...rankUpgrades.map(r => ({
     id: `rank-${r.id}`,
@@ -1195,9 +1194,9 @@ const canRefer =
 </section>
         <div className="stats">
   <article className="stat">
-    <small>Verified commissions</small>
-    <strong>{money(totalCommission)}</strong>
-  </article>
+  <small>Verified commissions</small>
+  <strong>{canRefer ? money(totalCommission) : 'Locked'}</strong>
+</article> 
   <article className="stat">
     <small>My orders</small>
     <strong>{orders.length}</strong>
