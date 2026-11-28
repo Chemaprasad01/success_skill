@@ -34,6 +34,7 @@ const [otpSent, setOtpSent] = useState(false);
 const [payoutMethod, setPayoutMethod] = useState('upi');
 const [upiId, setUpiId] = useState('');
 const [accountHolder, setAccountHolder] = useState('');
+  const [accountHolderName, setAccountHolderName] = useState('');
 const [accountNumber, setAccountNumber] = useState('');
 const [ifsc, setIfsc] = useState('');
 const [payoutReferences, setPayoutReferences] = useState({});
@@ -768,9 +769,20 @@ async function submitWithdrawal(e) {
     let details = {};
 
     if (payoutMethod === 'upi') {
-      if (!upiId.trim()) throw new Error('Enter your UPI ID.');
-      details = { upi_id: upiId.trim() };
-    } else {
+  if (!accountHolderName.trim()) {
+    throw new Error('Enter your UPI account holder name.');
+  }
+
+  if (!upiId.trim()) {
+    throw new Error('Enter your UPI ID.');
+  }
+
+  details = {
+    account_holder: accountHolderName.trim(),
+    upi_id: upiId.trim()
+  };
+    }
+        else {
       if (!accountHolder.trim() || !accountNumber.trim() || !ifsc.trim()) {
         throw new Error('Complete all bank details.');
       }
@@ -797,6 +809,7 @@ async function submitWithdrawal(e) {
 
     setWithdrawAmount('');
     setUpiId('');
+    setAccountHolderName('');
     setAccountHolder('');
     setAccountNumber('');
     setIfsc('');
@@ -1506,17 +1519,29 @@ const canRefer =
     </label>
 
     {payoutMethod === 'upi' ? (
-      <label>
-        UPI ID
+  <>
+    <label>
+      Account Holder Name
+      <input
+        required
+        value={accountHolderName}
+        onChange={e => setAccountHolderName(e.target.value)}
+        placeholder="Enter account holder name"
+      />
+    </label>
+
+    <label>
+      UPI ID 
         <input
           required
           value={upiId}
           onChange={e => setUpiId(e.target.value)}
           placeholder="example@upi"
         />
-      </label>
+          </label>
+    </>
     ) : (
-      <>
+      <> 
         <label>
           Account holder name
           <input
@@ -1871,7 +1896,10 @@ const canRefer =
             <td>{money(Number(w.amount_paise) / 100)}</td>
             <td>
               {w.payout_method === 'upi' ? (
-                <div>UPI: {w.payout_details?.upi_id}</div>
+  <div>
+    <div>Name: {w.payout_details?.account_holder || 'Not provided'}</div>
+    <div>UPI: {w.payout_details?.upi_id}</div>
+  </div> 
               ) : (
                 <div>
                   <div>{w.payout_details?.account_holder}</div>
