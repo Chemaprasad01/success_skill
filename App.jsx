@@ -7,6 +7,7 @@ const ranks = ['Platinum','Silver','Gold','Diamond','Crown'];
 export default function App(){
   const [session,setSession] = useState(null);
   const [profile,setProfile] = useState(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
   const [product,setProduct] = useState(null);
   const [orders,setOrders] = useState([]);
   const [commissions,setCommissions] = useState([]);
@@ -15,7 +16,7 @@ export default function App(){
   const [email,setEmail] = useState('');
   const [password,setPassword] = useState('');
   const [resetMode, setResetMode] = useState(false);
-  const [recoveryReady, setRecoveryReady] = useState(false);
+const [recoveryReady, setRecoveryReady] = useState(false);
 const [newPassword, setNewPassword] = useState('');
   const [fullName,setFullName] = useState('');
   const [referral,setReferral] = useState(new URLSearchParams(location.search).get('ref') || '');
@@ -33,9 +34,45 @@ const [otpSent, setOtpSent] = useState(false);
 const [payoutMethod, setPayoutMethod] = useState('upi');
 const [upiId, setUpiId] = useState('');
 const [accountHolder, setAccountHolder] = useState('');
+  const [accountHolderName, setAccountHolderName] = useState('');
 const [accountNumber, setAccountNumber] = useState('');
 const [ifsc, setIfsc] = useState('');
 const [payoutReferences, setPayoutReferences] = useState({});
+  // Customer Support & Complaint System
+const [supportTickets, setSupportTickets] = useState([]);
+const [selectedTicket, setSelectedTicket] = useState(null);
+const [ticketReplies, setTicketReplies] = useState([]);
+const [ticketCategory, setTicketCategory] = useState('Membership and payments');
+const [ticketSubject, setTicketSubject] = useState('');
+const [ticketComplaint, setTicketComplaint] = useState('');
+const [ticketReply, setTicketReply] = useState('');
+const [ticketBusy, setTicketBusy] = useState(false);
+  // Admin complaint filters
+const [adminTicketStatusFilter, setAdminTicketStatusFilter] = useState('All');
+const [adminTicketCategoryFilter, setAdminTicketCategoryFilter] = useState('All');
+const mySupportTickets = supportTickets.filter(
+  ticket => ticket.member_id === session?.user?.id
+);  
+  const filteredAdminTickets = supportTickets
+  .filter(ticket =>
+    adminTicketStatusFilter === 'All' ||
+    ticket.status === adminTicketStatusFilter
+  )
+  .filter(ticket =>
+    adminTicketCategoryFilter === 'All' ||
+    ticket.category === adminTicketCategoryFilter
+  )
+  .sort((a, b) => {
+    const priority = {
+      'Submitted': 1,
+      'In Review': 2,
+      'Replied': 3,
+      'Resolved': 4
+    };
+
+    return (priority[a.status] || 5) - (priority[b.status] || 5) ||
+      new Date(b.created_at) - new Date(a.created_at);
+  });
 
 
   useEffect(()=>{
@@ -96,6 +133,20 @@ setProfile(p);
     setOrders(o || []);
     setCommissions(c || []);
     setReferrals(refs || []);
+    let ticketQuery = supabase
+  .from('support_tickets')
+  .select('id, ticket_number, member_id, category, subject, complaint, status, created_at, updated_at');
+
+if (p.role !== 'admin') {
+  ticketQuery = ticketQuery.eq('member_id', uid);
+}
+
+const { data: ticketData, error: ticketError } =
+  await ticketQuery.order('created_at', { ascending: false });
+
+if (ticketError) throw ticketError;
+
+setSupportTickets(ticketData || []);
     const { data: walletData, error: walletError } = await supabase
   .from('wallet_ledger')
   .select('id, member_id, commission_event_id, wallet_type, amount_paise, created_at')
@@ -168,11 +219,300 @@ if (p.role === 'admin') {
   }
 }
 
+async function submitSupportTicket(e) {
+  e.preventDefault();
 
-async function authSubmit(e){
+  if (!session?.user?.id) {
+    setMessage('Please login first.');
+    return;
+  }
+
+  if (ticketSubject.trim().length < 3 || ticketComplaint.trim().length < 10) {
+    setMessage('Subject must be at least 3 characters and complaint at least 10 characters.');
+    return;
+  }
+
+  setTicketBusy(true);
+  setMessage('');
+
+  try {
+    const { data, error } = await supabase
+      .from('support_tickets')
+      .insert({
+        member_id: session.user.id,
+        category: ticketCategory,
+        subject: ticketSubject.trim(),
+        complaint: ticketComplaint.trim()
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    setTicketSubject('');
+    setTicketComplaint('');
+    setTicketCategory('Membership and payments');
+
+    setMessage(`Complaint submitted successfully! Your Ticket ID is #${data.ticket_number}.`);
+
+    await load();
+  } catch (error) {
+    setMessage(error.message || 'Unable to submit complaint.');
+  } finally {
+    setTicketBusy(false);
+  }
+}
+  async function loadTicketReplies(ticket) {
+  setSelectedTicket(ticket);
+  setTicketReplies([]);
+
+  try {
+    const { data, error } = await supabase
+      .from('support_ticket_replies')
+      .select('id, ticket_id, sender_id, message, created_at')
+      .eq('ticket_id', ticket.id)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    setTicketReplies(data || []);
+  } catch (error) {
+    setMessage(error.message || 'Unable to load complaint conversation.');
+  }
+  }
+  async function sendTicketReply(e) {
+  e.preventDefault();
+
+  if (!selectedTicket || !session?.user?.id || !ticketReply.trim()) {
+    return;
+  }
+
+  setTicketBusy(true);
+  setMessage('');
+
+  try {
+    const { error } = await supabase
+      .from('support_ticket_replies')
+      .insert({
+        ticket_id: selectedTicket.id,
+        sender_id: session.user.id,
+        message: ticketReply.trim()
+      });
+
+    if (error) throw error;
+
+    if (profile?.role === 'admin') {
+      const { error: statusError } = await supabase
+        .from('support_tickets')
+        .update({
+          status: 'Replied',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedTicket.id);
+
+      if (statusError) throw statusError;
+    }
+
+    setTicketReply('');
+    await loadTicketReplies(selectedTicket);
+    await load();
+
+    setMessage('Reply sent successfully.');
+  } catch (error) {
+    setMessage(error.message || 'Unable to send reply.');
+  } finally {
+    setTicketBusy(false);
+  }
+  }
+  async function updateTicketStatus(ticketId, status) {
+  if (profile?.role !== 'admin') return;
+
+  try {
+    const { error } = await supabase
+      .from('support_tickets')
+      .update({
+        status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', ticketId);
+
+    if (error) throw error;
+
+    setMessage('Complaint status updated successfully.');
+
+    await load();
+
+    if (selectedTicket?.id === ticketId) {
+      setSelectedTicket(prev => ({ ...prev, status }));
+    }
+  } catch (error) {
+    setMessage(error.message || 'Unable to update complaint status.');
+  }
+  }
+  
+async function uploadAvatar(file) {
+  if (!file || !session?.user?.id) return;
+
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    setMessage('Please choose a JPG, PNG or WEBP image.');
+    return;
+  }
+
+  if (file.size > 2 * 1024 * 1024) {
+    setMessage('Photo must be 2 MB or smaller.');
+    return;
+  }
+
+  setAvatarBusy(true);
+  setMessage('');
+
+  try {
+    const path = `${session.user.id}/avatar`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, {
+        upsert: true,
+        contentType: file.type,
+        cacheControl: '3600'
+      });
+
+    if (uploadError) throw uploadError;
+    console.log('AVATAR STORAGE UPLOAD SUCCESS');
+
+    const { data } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(path);
+
+    const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+    console.log('Logged-in user ID:', session.user.id);
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', session.user.id);
+
+    if (updateError) throw updateError;
+
+    setProfile(previous => ({ ...previous, avatar_url: avatarUrl }));
+    setMessage('Profile photo updated successfully.');
+  } catch (error) {
+  console.error('AVATAR ERROR DETAILS:', error);
+
+  setMessage(
+    `Error: ${error.message} | Code: ${error.code || 'N/A'} | Details: ${error.details || 'N/A'}`
+  );
+  }
+ finally {
+    setAvatarBusy(false);
+  }
+}
+
+
+async function removeAvatar() {
+  if (!session?.user?.id) return;
+
+  setAvatarBusy(true);
+  setMessage('');
+
+  try {
+    const path = `${session.user.id}/avatar`;
+
+    const { error: storageError } = await supabase.storage
+      .from('avatars')
+      .remove([path]);
+
+    if (storageError) throw storageError;
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ avatar_url: null })
+      .eq('id', session.user.id);
+
+    if (updateError) throw updateError;
+
+    setProfile(previous => ({ ...previous, avatar_url: null }));
+    setMessage('Profile photo removed.');
+  } catch (error) {
+    console.error('AVATAR REMOVE ERROR:', error);
+
+    setMessage(
+      `Error: ${error.message} | Code: ${error.code || 'N/A'}`
+    );
+  } finally {
+    setAvatarBusy(false);
+  }
+}
+
+async function sendPasswordReset(e) {
+  e.preventDefault();
+  setBusy(true);
+  setMessage('');
+
+  try {
+    if (!email.trim()) {
+      throw new Error('Please enter your registered email address.');
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email.trim(),
+      {
+        redirectTo: window.location.origin
+      }
+    );
+
+    if (error) throw error;
+
+    setMessage('If an account exists for this email, a password reset link has been sent. Please check your inbox.');
+  } catch (error) {
+    setMessage(error.message || 'Could not send password reset email.');
+  } finally {
+    setBusy(false);
+  }
+}
+async function updatePassword(e) {
+  e.preventDefault();
+  setBusy(true);
+  setMessage('');
+
+  try {
+    if (newPassword.length < 8) {
+      throw new Error('Password must contain at least 8 characters.');
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) throw error;
+
+    await supabase.auth.signOut();
+
+    setNewPassword('');
+    setPassword('');
+    setResetMode(false);
+    setRecoveryReady(false);
+    setMode('login');
+    setMessage('Password updated successfully. Please log in with your new password.');
+
+  } catch (error) {
+    setMessage(error.message || 'Could not update password.');
+  } finally {
+    setBusy(false);
+  }
+}
+  
+async function authSubmit(e) {
     e.preventDefault(); setBusy(true); setMessage('');
     try{
       if(mode==='signup'){
+        if (!fullName.trim()) {
+  throw new Error('Please enter your full name.');
+}
+
+if (!referral.trim()) {
+  throw new Error('Referral code is required.');
+}
         const {error} = await supabase.auth.signUp({email,password,options:{data:{full_name:fullName,referral_code:referral.trim()||null}}});
         if(error) throw error;
         setMessage('Account created. Check your email if confirmation is enabled, then sign in.');
@@ -342,9 +682,88 @@ const mainWalletAvailable = Math.max(
   mainWalletCredits - paidWithdrawals - reservedWithdrawals
 );
 
+const transactionHistory = [
+  ...walletTransactions.map(t => ({
+    id: `wallet-${t.id}`,
+    date: t.created_at,
+    title: t.wallet_type === 'self_upgrade'
+      ? 'Rank Upgrade Credit'
+      : 'Main Wallet Credit',
+    wallet: t.wallet_type === 'self_upgrade'
+      ? 'Rank Upgrade Credit'
+      : 'Main Wallet',
+    amount: Number(t.amount_paise || 0),
+    direction: 'credit',
+    status: 'Completed'
+  })),
+
+  ...withdrawalDebits.map(d => {
+    const relatedWithdrawal = withdrawals.find(
+      w => w.id === d.withdrawal_request_id
+    );
+
+    return {
+      id: `debit-${d.id}`,
+      date: d.paid_at || relatedWithdrawal?.paid_at || relatedWithdrawal?.created_at,
+      title: 'Withdrawal Paid',
+      wallet: 'Main Wallet',
+      amount: Number(d.amount_paise || 0),
+      direction: 'debit',
+      status: 'Completed'
+    };
+  })
+].sort((a, b) =>
+  new Date(b.date || 0) - new Date(a.date || 0)
+);
+  
 const rankUpgradeCredits = walletTransactions
   .filter(t => t.wallet_type === 'self_upgrade')
   .reduce((sum, t) => sum + Number(t.amount_paise || 0), 0);
+
+const recentActivities = [
+  ...orders.map(o => ({
+    id: `order-${o.id}`,
+    type: 'order',
+    title: 'Course Purchase',
+    description: `${o.course_name || 'Course'} — ${o.status || 'Status unavailable'}`,
+    date: o.created_at,
+    amount: o.amount_paise
+  })),
+
+ ...referrals.map(r => ({
+  id: `referral-${r.referred_user_id}`,
+  type: 'referral',
+  title: 'New Referral',
+  description: r.referred_user_name || 'A new member joined your team'
+})), 
+
+ ...(profile?.role === 'admin' || profile?.payment_completed === true ? commissions.map(c => ({
+  id: `commission-${c.id}`,
+  type: 'commission',
+  title: 'Commission Received',
+  description: `Commission #${c.sequence_number || '—'} · ${c.payout_destination || 'Wallet'}`,
+  date: c.created_at,
+  amount: c.commission_paise
+})) : []), 
+
+  ...rankUpgrades.map(r => ({
+    id: `rank-${r.id}`,
+    type: 'rank',
+    title: 'Rank Upgrade',
+    description: `${r.previous_rank || 'Starter'} → ${r.new_rank}`,
+    date: r.verified_at || r.created_at,
+    amount: r.amount_paise
+  })),
+
+  ...withdrawals.map(w => ({
+    id: `withdrawal-${w.id}`,
+    type: 'withdrawal',
+    title: 'Withdrawal Update',
+    description: `Withdrawal ${w.status}`,
+    date: w.paid_at || w.reviewed_at || w.created_at,
+    amount: w.amount_paise
+  }))
+].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
 async function sendWithdrawalOtp() {
   setBusy(true);
@@ -362,12 +781,18 @@ async function sendWithdrawalOtp() {
     }
 
     if (payoutMethod === 'upi') {
-      if (!upiId.trim()) throw new Error('Enter your UPI ID.');
-    } else {
-      if (!accountHolder.trim() || !accountNumber.trim() || !ifsc.trim()) {
-        throw new Error('Complete all bank details.');
-      }
-    }
+  if (!accountHolderName.trim()) {
+    throw new Error('Enter your UPI account holder name.');
+  }
+
+  if (!upiId.trim()) {
+    throw new Error('Enter your UPI ID.');
+  }
+} else {
+  if (!accountHolder.trim() || !accountNumber.trim() || !ifsc.trim()) {
+    throw new Error('Complete all bank details.');
+  }
+    } 
 
     const { data, error } = await supabase.functions.invoke(
       'send-withdrawal-otp-'
@@ -413,9 +838,20 @@ async function submitWithdrawal(e) {
     let details = {};
 
     if (payoutMethod === 'upi') {
-      if (!upiId.trim()) throw new Error('Enter your UPI ID.');
-      details = { upi_id: upiId.trim() };
-    } else {
+  if (!accountHolderName.trim()) {
+    throw new Error('Enter your UPI account holder name.');
+  }
+
+  if (!upiId.trim()) {
+    throw new Error('Enter your UPI ID.');
+  }
+
+  details = {
+    account_holder: accountHolderName.trim(),
+    upi_id: upiId.trim()
+  };
+    }
+        else {
       if (!accountHolder.trim() || !accountNumber.trim() || !ifsc.trim()) {
         throw new Error('Complete all bank details.');
       }
@@ -442,6 +878,7 @@ async function submitWithdrawal(e) {
 
     setWithdrawAmount('');
     setUpiId('');
+    setAccountHolderName('');
     setAccountHolder('');
     setAccountNumber('');
     setIfsc('');
@@ -533,198 +970,654 @@ const isPlatinumOrHigher =
   (rankPriority[profile?.rank] || 0) >= rankPriority.Platinum;
 
 const hideBuyButton = hasVerifiedPurchase;
+  const membershipActive = profile?.payment_completed === true;
+
+const canRefer =
+  profile?.role === 'admin' || membershipActive;
   
   if(!configured) return <main className="shell"><header><div className="brand">SUCCESS <b>SKILL</b></div><span className="tag">SETUP REQUIRED</span></header><section className="hero"><p className="eyebrow">DIGITAL LEARNING PLATFORM</p><h1>Build skills.<br/><em>Grow with purpose.</em></h1><p>Connect your Supabase project to activate customer accounts, orders and the admin dashboard.</p></section><section className="panel"><h2>Connect Supabase</h2><ol><li>Create a Supabase project.</li><li>Copy <b>.env.example</b> to <b>.env</b>.</li><li>Add your Project URL and anon key.</li><li>Run the SQL setup in <b>supabase/schema.sql</b>.</li></ol><p className="muted">Never put your Supabase service-role key in this frontend.</p></section><footer>SUCCESS SKILL · Starter website</footer></main>;
   return <main className="shell">
-    <header><div className="brand">SUCCESS <b>SKILL</b></div>{session?<button className="primary" onClick={signOut}>Sign out</button>:<span className="tag">EBOOK PLATFORM</span>}</header>
+    <header>
+  <div className="brand">SUCCESS <b>SKILL</b></div>
+  {session ? (
+    <button className="primary" onClick={signOut}>Sign out</button>
+  ) : (
+    <span className="tag">EBOOK PLATFORM</span>
+  )}
+</header>
+    {session && (
+  
+<nav className="dashboard-nav" aria-label="Dashboard navigation">
+  <a href="#overview">
+    <span className="nav-icon" aria-hidden="true">⌂</span>
+    Overview
+  </a>
+
+  <a href="#wallets">
+    <span className="nav-icon" aria-hidden="true">₹</span>
+    My Wallets
+  </a>
+
+  <a href="#referrals">
+    <span className="nav-icon" aria-hidden="true">♧</span>
+    My Team
+  </a>
+
+  <a href="#ranks">
+    <span className="nav-icon" aria-hidden="true">★</span>
+    Rank Progress
+  </a>
+
+  <a href="#orders">
+    <span className="nav-icon" aria-hidden="true">▤</span>
+    My Orders
+  </a>
+
+  <a href="#commissions">
+    <span className="nav-icon" aria-hidden="true">↗</span>
+    Commissions
+  </a>
+</nav>
+
+)}
     <section className="hero"><p className="eyebrow">LEARN · APPLY · PROGRESS</p><h1>Your next chapter<br/><em>starts here.</em></h1><p>One digital eBook. A clear path to learning and measurable sales performance.</p></section>
     {message && <div className="notice" role="status">{message}</div>}
     {(!session || recoveryReady) ? <section className="auth panel"> 
-      {recoveryReady && (
-  <div>
-    <h2>Create New Password</h2>
-    <form onSubmit={updatePassword}>
-      <label>
-        New password
+      {recoveryReady ? (
+        <div>
+          <h2>Create New Password</h2>
+          <form onSubmit={updatePassword}>
+            <label>
+              New password
+              <input
+                type="password"
+                required
+                minLength={8}
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+                autoComplete="new-password"
+              />
+            </label>
+            <button className="primary" disabled={busy}>
+              {busy ? 'Please wait…' : 'Update Password'}
+            </button>
+          </form>
+        </div>
+      ) : resetMode ? (
+        <div>
+          <h2>Reset Your Password</h2>
+          <p className="muted">
+            Enter your registered email address to receive a password reset link.
+          </p>
+          <form onSubmit={sendPasswordReset}>
+            <label>
+              Email address
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="Enter your registered email"
+                autoComplete="email"
+              />
+            </label>
+            <button className="primary" disabled={busy}>
+              {busy ? 'Please wait…' : 'Send Reset Link'}
+            </button>
+          </form>
+          <button
+            type="button"
+            className="outline dark"
+            onClick={() => {
+              setResetMode(false);
+              setMessage('');
+            }}
+          >
+            Back to Login
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="tabs">
+            <button
+              type="button"
+              className={mode === 'login' ? 'tab active' : 'tab'}
+              onClick={() => setMode('login')}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              className={mode === 'signup' ? 'tab active' : 'tab'}
+              onClick={() => setMode('signup')}
+            >
+              Create account
+            </button>
+          </div>
+
+          <h2>{mode === 'login' ? 'Welcome back' : 'Join SUCCESS SKILL'}</h2>
+
+          <form onSubmit={authSubmit}>
+            {mode === 'signup' && (
+              <label>
+                Full name
+                <input
+                  required
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  autoComplete="name"
+                />
+              </label>
+            )}
+
+            <label>
+              Email address
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                autoComplete="email"
+              />
+            </label>
+
+            <label>
+              Password
+              <input
+                type="password"
+                minLength={8}
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              />
+            </label>
+
+            {mode === 'signup' && (
+              <label>
+                Referral code (required)
+                <input
+                  required
+                  readOnly={Boolean(new URLSearchParams(location.search).get('ref'))}
+                  value={referral}
+                  onChange={e => setReferral(e.target.value)}
+                  placeholder="Enter referral code"
+                />
+              </label>
+            )}
+
+            <button className="primary" disabled={busy}>
+              {busy ? 'Please wait…' : mode === 'login' ? 'Login' : 'Create account'}
+            </button>
+
+            {mode === 'login' && (
+              <button
+                type="button"
+                className="outline dark"
+                onClick={() => {
+                  setResetMode(true);
+                  setMessage('');
+                }}
+              >
+                Forgot Password?
+              </button>
+            )}
+          </form>
+
+          <p className="muted tiny">
+            Use a valid email. Your account may require email confirmation depending on Supabase settings.
+          </p>
+        </>
+      )}
+    </section> : <>
+<section className="welcome profile-welcome" id="overview">
+  <div className="profile-welcome-main">
+    <div className="profile-avatar-area">
+      {profile?.avatar_url ? (
+        <img
+          src={profile.avatar_url}
+          alt="Profile"
+          className="profile-avatar"
+        />
+      ) : (
+        <div className="profile-avatar profile-avatar-placeholder">
+          {(profile?.full_name || session.user.email || 'U')
+            .charAt(0).toUpperCase()}
+        </div>
+      )}
+
+      <label className="avatar-upload-button">
+        {avatarBusy
+          ? 'Please wait…'
+          : profile?.avatar_url
+            ? 'Change photo'
+            : 'Upload photo'}
+
         <input
-          type="password"
-          required
-          minLength={8}
-          value={newPassword}
-          onChange={e => setNewPassword(e.target.value)}
-          placeholder="Enter new password"
-          autoComplete="new-password"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          disabled={avatarBusy}
+          onChange={e => {
+            const file = e.target.files?.[0];
+            if (file) uploadAvatar(file);
+            e.target.value = '';
+          }}
         />
       </label>
 
-      <button className="primary" disabled={busy}>
-        {busy ? 'Please wait…' : 'Update Password'}
-      </button>
-    </form>
-  </div>
-)}
-      {resetMode && !recoveryReady && (
-  <div>
-    <h2>Reset Your Password</h2>
-    <p className="muted">
-      Enter your registered email address to receive a password reset link.
-    </p>
+      {profile?.avatar_url && (
+        <button
+          type="button"
+          className="avatar-remove-button"
+          disabled={avatarBusy}
+          onClick={removeAvatar}
+        >
+          Remove
+        </button>
+      )}
+    </div>
 
-    <form onSubmit={sendPasswordReset}>
-      <label>
-        Email address
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          placeholder="Enter your registered email"
-          autoComplete="email"
-        />
-      </label>
+    <div className="profile-welcome-text">
+      <p className="eyebrow">MEMBER DASHBOARD</p>
+      <h2>Hello, {profile?.full_name || session.user.email}</h2>
 
-      <button className="primary" disabled={busy}>
-        {busy ? 'Please wait…' : 'Send Reset Link'}
-      </button>
-    </form>
-
-    <button
-      type="button"
-      className="outline dark"
-      onClick={() => {
-        setResetMode(false);
-        setMessage('');
-      }}
-    >
-      Back to Login
-    </button>
-  </div>
-)}
-      {!recoveryReady && !resetMode && ( 
-      <div className="tabs"><button className={mode==='login'?'tab active':'tab'} onClick={()=>setMode('login')}>Login</button><button className={mode==='signup'?'tab active':'tab'} onClick={()=>setMode('signup')}>Create account</button></div>
-      <h2>{mode==='login'?'Welcome back':'Join SUCCESS SKILL'}</h2>
-      <form onSubmit={authSubmit}>
-        {mode==='signup'&&<label>Full name<input required value={fullName} onChange={e=>setFullName(e.target.value)} autoComplete="name"/></label>}
-        <label>Email address<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email"/></label>
-        <label>Password<input type="password" minLength="8" required value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==='login'?'current-password':'new-password'}/></label>
-        {mode==='signup'&&<label>Referral code (required)<input required readOnly={Boolean(new URLSearchParams(location.search).get('ref'))} value={referral} onChange={e=>setReferral(e.target.value)} placeholder="Enter referral code"/></label>} 
-        <button className="primary" disabled={busy}>{busy?'Please wait…':mode==='login'?'Login':'Create account'}</button>
-          {mode === 'login' && (
-  <button
-    type="button"
-    className="outline dark"
-    onClick={() => {
-      setResetMode(true);
-      setMessage('');
-    }}
-  >
-    Forgot Password?
-  </button>
-)}
-      </form>
-      <p className="muted tiny">Use a valid email. Your account may require email confirmation depending on Supabase settings.</p>
-          )}
-    </section> : <><section className="welcome"><div><p className="eyebrow">MEMBER DASHBOARD</p><h2>Hello, {profile?.full_name || session.user.email}</h2><p className="muted">
-  Referral code: <b>{profile?.referral_code || 'Preparing…'}</b>
+      <p className="muted">
+  Welcome to your SUCCESS SKILL dashboard.
 </p>
 
-{profile?.referral_code && (
-  <div>
-    <p className="muted">Your personal referral link:</p>
-    <a
-      href={`${window.location.origin}/?ref=${encodeURIComponent(profile.referral_code)}`}
-      target="_blank"
-      rel="noreferrer"
-    >
-      {window.location.origin}/?ref={profile.referral_code}
-    </a>
-    <button
-      className="primary"
-      onClick={() => navigator.clipboard.writeText(
-        `${window.location.origin}/?ref=${encodeURIComponent(profile.referral_code)}`
-      ).then(() => setMessage('Referral link copied!'))
-       .catch(() => setMessage('Unable to copy. Please copy the link manually.'))}
-    >
-      Copy referral link
-    </button>
+{membershipActive ? (
+  <p className="membership-status active">
+    ✓ Membership Active
+  </p>
+) : (
+  <p className="membership-status inactive">
+    Membership Not Activated — Purchase ₹600 membership
+    and wait for payment verification.
+  </p>
+)} 
+
+            {canRefer ? (
+        <>
+          <p className="muted">
+            Referral code: <b>{profile?.referral_code || 'Preparing…'}</b>
+          </p>
+
+          {profile?.referral_code && (
+            <div>
+              <p className="muted">Your personal referral link:</p>
+              <a
+                href={`${window.location.origin}/?ref=${encodeURIComponent(profile.referral_code)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {window.location.origin}/?ref={profile.referral_code}
+              </a>
+              <button
+                className="primary"
+                onClick={() => navigator.clipboard.writeText(
+                  `${window.location.origin}/?ref=${encodeURIComponent(profile.referral_code)}`
+                ).then(() => setMessage('Referral link copied!'))
+                 .catch(() => setMessage('Unable to copy. Please copy the link manually.'))}
+              >
+                Copy referral link
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="muted">
+          Referral access is locked. Activate your ₹600 membership first.
+        </p>
+      )} 
+    </div>
   </div>
-)}</div><span className="rank">{profile?.rank || 'Not Activated'}</span></section>
-      <div className="stats">
-<section className="panel">
-  <p className="eyebrow">MY NETWORK</p>
-  <h2>My Referral Team</h2>
 
-  <div className="stat">
-    <small>Total direct referrals</small>
-    <strong>{referrals.length}</strong>
+  <span className="rank">
+    {profile?.rank || 'Not Activated'}
+  </span>
+</section>
+      
+      <section className="panel profile-details" id="profile-details"> 
+  <p className="eyebrow">ACCOUNT INFORMATION</p>
+  <h2>My Profile Details</h2>
+
+  <div className="profile-details-grid">
+    <div className="profile-detail-item">
+      <small>Full Name</small>
+      <strong>{profile?.full_name || 'Not available'}</strong>
+    </div>
+
+    <div className="profile-detail-item">
+      <small>Email Address</small>
+      <strong>{profile?.email || session.user.email}</strong>
+    </div>
+
+    <div className="profile-detail-item">
+  <small>Referral Code</small>
+  <strong>
+    {canRefer
+      ? (profile?.referral_code || 'Preparing…')
+      : 'Locked — Activate membership'}
+  </strong>
+</div>
+
+    <div className="profile-detail-item">
+      <small>Current Rank</small>
+      <strong>{profile?.rank || 'Not Activated'}</strong>
+    </div>
+
+    <div className="profile-detail-item">
+      <small>Account Created</small>
+      <strong>
+        {profile?.created_at
+          ? new Date(profile.created_at).toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric'
+            })
+          : 'Not available'}
+      </strong>
+    </div>
   </div>
-
-  {ranks.map(rank => {
-    const members = referrals.filter(
-      r => String(r.referred_user_rank || '').toLowerCase()
-        === rank.toLowerCase()
-    );
-
-    return (
-      <details key={rank} className="referral-group">
-        <summary>
-          <b>{rank}</b>
-          <span>{members.length} customers</span>
-        </summary>
-
-        {members.length ? (
-          <div className="tablewrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Customer</th>
-                  <th>Payment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {members.map(member => (
-                  <tr key={member.referred_user_id}>
-                    <td>{member.referred_user_name || 'Member'}</td>
-                    <td>
-                      {member.payment_completed ? 'Completed' : 'Pending'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="muted tiny">No customers in this rank yet.</p>
-        )}
-      </details>
-    );
-  })}
-</section> 
-      <article className="stat"><small>Verified commissions</small><strong>{money(totalCommission)}</strong></article><article className="stat"><small>My orders</small><strong>{orders.length}</strong></article><article className="stat"><small>Current rank</small><strong className="ranktext">{profile?.rank || 'Not Activated'}</strong></article></div>
-     
-<section className="panel">
+</section>
+        <div className="stats">
+  <article className="stat">
+  <small>Verified commissions</small>
+  <strong>{canRefer ? money(totalCommission) : 'Locked'}</strong>
+</article> 
+  <article className="stat">
+    <small>My orders</small>
+    <strong>{orders.length}</strong>
+  </article>
+  <article className="stat">
+    <small>Current rank</small>
+    <strong className="ranktext">{profile?.rank || 'Not Activated'}</strong>
+  </article>
+        </div>
+      
+      <section className="panel wallet-panel" 
+  id="wallets">
   <p className="eyebrow">MY WALLETS</p>
   <h2>Wallet balances</h2>
 
-  <div className="stats">
-    <article className="stat">
-      <small>Main Wallet · Withdrawable</small>
+  <div className="wallet-grid">
+    <article className="wallet-card main-wallet">
+      <div className="wallet-card-top">
+        <span className="wallet-icon">₹</span>
+        <span className="wallet-tag">WITHDRAWABLE</span>
+      </div>
+
+      <small>Main Wallet</small>
       <strong>{money(mainWalletAvailable / 100)}</strong>
+
+      <p>Available balance for eligible withdrawals.</p>
     </article>
 
-    <article className="stat">
-      <small>Rank Upgrade Credit · Not withdrawable</small>
+    <article className="wallet-card rank-wallet">
+      <div className="wallet-card-top">
+        <span className="wallet-icon">★</span>
+        <span className="wallet-tag">RANK CREDIT</span>
+      </div>
+
+      <small>Rank Upgrade Credit</small>
       <strong>{money(rankUpgradeCredits / 100)}</strong>
+
+      <p>Used toward your next eligible rank upgrade. Not withdrawable.</p>
     </article>
   </div>
 
-  <p className="tiny muted">
+  <p className="tiny muted wallet-note">
     Pending and approved withdrawals are reserved from your Main Wallet.
-    Rank Upgrade Credit cannot be withdrawn.
+    Rank Upgrade Credit is separate and cannot be withdrawn.
+  </p>
+</section>
+      <section className="panel" id="transactions">
+  <p className="eyebrow">WALLET ACTIVITY</p>
+  <h2>Transaction History</h2>
+  <p className="tiny muted">
+    Review credits added to your wallets and completed withdrawals.
+  </p>
+
+  <div className="tablewrap transaction-history-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Transaction</th>
+          <th>Wallet</th>
+          <th>Amount</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {transactionHistory.length ? transactionHistory.map(t => (
+          <tr key={t.id}>
+            <td>
+              {t.date
+                ? new Date(t.date).toLocaleDateString('en-IN')
+                : '—'}
+            </td>
+            <td>{t.title}</td>
+            <td>{t.wallet}</td>
+            <td>
+              {t.direction === 'credit' ? '+' : '-'}
+              {money(t.amount / 100)}
+            </td>
+            <td>{t.status}</td>
+          </tr>
+        )) : (
+          <tr>
+            <td colSpan="5" className="muted">
+              No transactions recorded yet.
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</section>
+      
+<section className="panel">
+  <div className="sectionhead">
+    <div>
+      <p className="eyebrow">DIGITAL PRODUCT</p>
+      <h2>SUCCESS SKILL eBook</h2>
+    </div>
+    <span className="price">₹600</span>
+  </div>
+
+  <p className="muted">
+    Learn, apply and grow with the SUCCESS SKILL digital learning program.
+  </p>
+
+  <div className="actions">
+  {!hideBuyButton ? (
+    <button
+      className="primary"
+      onClick={placeOrder}
+      disabled={busy}
+    >
+      Buy eBook · ₹600
+    </button>
+  ) : (
+    <div className="notice">
+      {isPlatinumOrHigher
+        ? '✓ eBook purchased. Your membership is activated.'
+        : 'Payment verified. Your rank activation is being processed.'}
+    </div>
+  )}
+
+  <button
+    className="outline dark"
+    onClick={downloadBook}
+    disabled={busy}
+  >
+    Download purchased eBook
+  </button>
+</div>
+</section>
+
+<section className="panel" id="ranks">
+  <p className="eyebrow">RANK ACHIEVEMENT</p>
+  <h2>Rank pathway</h2>
+
+  <div className="rankpath">
+    {ranks.map((r, i) => {
+      const required = [600, 900, 1800, 3600, 7500][i] * 100;
+
+      const currentRankIndex = ranks.findIndex(
+        item =>
+          item.toLowerCase() ===
+          String(profile?.rank || '').toLowerCase()
+      );
+
+      const completed = currentRankIndex >= i;
+      const nextRank = i === currentRankIndex + 1;
+
+      const progress = completed
+        ? required
+        : nextRank
+          ? Math.min(rankUpgradeCredits, required)
+          : 0;
+
+      const percentage = Math.min(
+        100,
+        Math.round((progress / required) * 100)
+      );
+
+      return (
+        <div
+          className={'rankstep ' + (r === profile?.rank ? 'current' : '')}
+          key={r}
+        >
+          <span>{String(i + 1).padStart(2, '0')}</span>
+          <b>{r}</b>
+
+          <small>
+            {money(progress / 100)} / {money(required / 100)}
+          </small>
+
+          <div
+            className="rank-progress-track"
+            role="progressbar"
+            aria-label={`${r} rank progress`}
+            aria-valuenow={percentage}
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <div
+              className="rank-progress-fill"
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+
+          <small className="rank-progress-label">
+            {completed ? 'Completed' : `${percentage}% completed`}
+          </small>
+        </div>
+      );
+    })}
+  </div>
+
+  <p className="tiny muted">
+    Rank progress uses Rank Upgrade Credit only.
+    Main Wallet is excluded. Rank advancement requires approved,
+    documented genuine retail-sales criteria and administrator verification.
   </p>
 </section>
 
-<section className="panel">
+{canRefer ? (
+  <section className="panel" id="referrals">
+    <p className="eyebrow">MY NETWORK</p>
+    <h2>My Referral Team</h2>
+
+    <div className="stats referral-analytics">
+      <article className="stat">
+        <small>Total Referrals</small>
+        <strong>{referrals.length}</strong>
+      </article>
+
+      <article className="stat">
+        <small>Completed Payments</small>
+        <strong>
+          {referrals.filter(r => r.payment_completed).length}
+        </strong>
+      </article>
+
+      <article className="stat">
+        <small>Pending Payments</small>
+        <strong>
+          {referrals.filter(r => !r.payment_completed).length}
+        </strong>
+      </article>
+
+      <article className="stat">
+        <small>Completion Rate</small>
+        <strong>
+          {referrals.length
+            ? Math.round(
+                referrals.filter(r => r.payment_completed).length /
+                referrals.length * 100
+              )
+            : 0}%
+        </strong>
+      </article>
+    </div>
+
+    {ranks.map(rank => {
+      const members = referrals.filter(
+        r => String(r.referred_user_rank || '').toLowerCase()
+          === rank.toLowerCase()
+      );
+
+      return (
+        <details key={rank} className="referral-group">
+          <summary>
+            <b>{rank}</b>
+            <span>{members.length} customers</span>
+          </summary>
+
+          {members.length ? (
+            <div className="tablewrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Customer</th>
+                    <th>Payment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {members.map(member => (
+                    <tr key={member.referred_user_id}>
+                      <td>{member.referred_user_name || 'Member'}</td>
+                      <td>
+                        {member.payment_completed ? 'Completed' : 'Pending'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="muted tiny">No customers in this rank yet.</p>
+          )}
+        </details>
+      );
+    })}
+  </section>
+) : (
+  <section className="panel" id="referrals">
+    <p className="eyebrow">MY NETWORK</p>
+    <h2>Referral access locked</h2>
+    <p className="muted">
+      Purchase the ₹600 membership and wait for payment
+      verification to unlock your referral team.
+    </p>
+  </section>
+)}
+
+      <section className="panel">
   <p className="eyebrow">PAYOUT</p>
   <h2>Request withdrawal</h2>
 
@@ -754,17 +1647,29 @@ const hideBuyButton = hasVerifiedPurchase;
     </label>
 
     {payoutMethod === 'upi' ? (
-      <label>
-        UPI ID
+  <>
+    <label>
+      Account Holder Name
+      <input
+        required
+        value={accountHolderName}
+        onChange={e => setAccountHolderName(e.target.value)}
+        placeholder="Enter account holder name"
+      />
+    </label>
+
+    <label>
+      UPI ID 
         <input
           required
           value={upiId}
           onChange={e => setUpiId(e.target.value)}
           placeholder="example@upi"
         />
-      </label>
+          </label>
+    </>
     ) : (
-      <>
+      <> 
         <label>
           Account holder name
           <input
@@ -828,11 +1733,10 @@ const hideBuyButton = hasVerifiedPurchase;
     </button>
   </form>
 </section>
-
-<section className="panel">
+      <section className="panel">
   <h2>My withdrawal history</h2>
 
-  <div className="tablewrap">
+  <div className="tablewrap withdrawal-history-scroll"> 
     <table>
       <thead>
         <tr>
@@ -862,97 +1766,253 @@ const hideBuyButton = hasVerifiedPurchase;
   </div>
 </section>
 
-      <section className="panel">
-  <div className="sectionhead">
-    <div>
-      <p className="eyebrow">DIGITAL PRODUCT</p>
-      <h2>SUCCESS SKILL eBook</h2>
-    </div>
-    <span className="price">₹600</span>
-  </div>
+      <section className="panel"
+        id="orders"><h2>My orders</h2><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th><th>Retail verified</th></tr></thead><tbody>{orders.length?orders.map(o=><tr key={o.id}><td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(o.amount_paise || 0) / 100)}</td><td><span className={'status '+o.status}>{o.status}</span></td><td>
+  {o.retail_status === 'verified'
+    ? 'Yes'
+    : o.retail_status === 'rejected'
+      ? 'Rejected'
+      : 'Pending'}
+</td></tr>):<tr><td colSpan="4" className="muted">No orders yet.</td></tr>}</tbody></table></div></section>
+      
+{canRefer ? (
+  <section className="panel" id="commissions">
+    <h2>Commission history</h2>
+    <p className="tiny muted">
+      Commissions are calculated only on administrator-verified
+      qualifying retail sales under a legally reviewed plan.
+    </p>
 
+    <div className="tablewrap commission-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {commissions.length ? commissions.map(c => (
+            <tr key={c.id}>
+              <td>{new Date(c.created_at).toLocaleDateString('en-IN')}</td>
+              <td>{money(Number(c.commission_paise || 0) / 100)}</td>
+              <td>{c.payout_destination}</td>
+            </tr>
+          )) : (
+            <tr>
+              <td colSpan="3" className="muted">
+                No commissions recorded.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </section>
+) : (
+  <section className="panel" id="commissions">
+    <h2>Commission history locked</h2>
+    <p className="muted">
+      Activate your ₹600 membership and wait for payment
+      verification to unlock commission history.
+    </p>
+  </section>
+)}
+
+    <section className="panel" id="support">
+  <p className="eyebrow">CUSTOMER SUPPORT</p>
+  <h2>Help & Support Center</h2>
   <p className="muted">
-    Learn, apply and grow with the SUCCESS SKILL digital learning program.
+    Submit your complaint and track replies from our support team.
   </p>
 
-  <div className="actions">
-  {!hideBuyButton ? (
-    <button
-      className="primary"
-      onClick={placeOrder}
-      disabled={busy}
+  <form onSubmit={submitSupportTicket}>
+    <label>Issue Category</label>
+    <select
+      value={ticketCategory}
+      onChange={e => setTicketCategory(e.target.value)}
+      required
     >
-      Buy eBook · ₹600
+      <option>Membership and payments</option>
+      <option>eBook downloads</option>
+      <option>Referral commissions</option>
+      <option>Wallet and withdrawals</option>
+      <option>Rank upgrades</option>
+      <option>Others</option>
+    </select>
+
+    <label>Complaint Subject</label>
+    <input
+      type="text"
+      value={ticketSubject}
+      onChange={e => setTicketSubject(e.target.value)}
+      placeholder="Enter your complaint subject"
+      minLength={3}
+      maxLength={120}
+      required
+    />
+
+    <label>Describe Your Complaint</label>
+    <textarea
+      value={ticketComplaint}
+      onChange={e => setTicketComplaint(e.target.value)}
+      placeholder="Explain your issue in detail..."
+      minLength={10}
+      maxLength={5000}
+      rows={5}
+      required
+    />
+
+    <button className="primary" type="submit" disabled={ticketBusy}>
+      {ticketBusy ? 'Submitting...' : 'Submit Complaint'}
     </button>
+  </form>
+</section>
+      <section className="panel">
+  <p className="eyebrow">TICKET TRACKING</p>
+  <h2>My Complaints</h2>
+  <p className="muted">
+    Check your complaint status and view replies from our support team.
+  </p>
+
+        {mySupportTickets.length === 0 ? (
+    <p className="muted">You have not submitted any complaints yet.</p>
   ) : (
-    <div className="notice">
-      {isPlatinumOrHigher
-        ? '✓ eBook purchased. Your membership is activated.'
-        : 'Payment verified. Your rank activation is being processed.'}
+    <div className="activity-list">
+      {mySupportTickets.map(ticket => (
+        <article className="activity-item" key={ticket.id}>
+          <div className="activity-content">
+            <strong>Ticket #{ticket.ticket_number}</strong>
+            <p>{ticket.subject}</p>
+            <small>
+              {ticket.category} · {ticket.status} ·
+              {' '}{new Date(ticket.created_at).toLocaleDateString('en-IN')}
+            </small>
+          </div>
+
+          <button
+            type="button"
+            className="mini outline"
+            onClick={() => loadTicketReplies(ticket)}
+          >
+            View Conversation
+          </button>
+        </article>
+      ))}
     </div>
   )}
 
-  <button
-    className="outline dark"
-    onClick={downloadBook}
-    disabled={busy}
-  >
-    Download purchased eBook
-  </button>
-</div>
-</section>
-      
-<section className="panel">
-  <h2>Rank pathway</h2>
+  {selectedTicket && (
+    <div className="panel">
+      <h3>Ticket #{selectedTicket.ticket_number}</h3>
+      <p><strong>Subject:</strong> {selectedTicket.subject}</p>
+      <p><strong>Status:</strong> {selectedTicket.status}</p>
 
-  <div className="rankpath">
-    {ranks.map((r, i) => {
-      const required = [600, 900, 1800, 3600, 7500][i] * 100;
-
-      const currentRankIndex = ranks.findIndex(
-        item =>
-          item.toLowerCase() ===
-          String(profile?.rank || '').toLowerCase()
-      );
-
-      const completed = currentRankIndex >= i;
-      const nextRank = i === currentRankIndex + 1;
-
-      const progress = completed
-        ? required
-        : nextRank
-          ? Math.min(rankUpgradeCredits, required)
-          : 0;
-
-      return (
-        <div
-          className={'rankstep ' + (r === profile?.rank ? 'current' : '')}
-          key={r}
-        >
-          <span>{String(i + 1).padStart(2, '0')}</span>
-          <b>{r}</b>
-          <small>
-            {money(progress / 100)} / {money(required / 100)}
-          </small>
+      <div className="activity-item">
+        <div className="activity-content">
+          <strong>Original Complaint</strong>
+          <p>{selectedTicket.complaint}</p>
         </div>
-      );
-    })}
-  </div>
+      </div>
 
-  <p className="tiny muted">
-    Rank progress uses Rank Upgrade Credit only.
-    Main Wallet is excluded. Rank advancement requires approved,
-    documented genuine retail-sales criteria and administrator verification.
-  </p>
+      <h3>Conversation</h3>
+
+      {ticketReplies.length === 0 ? (
+        <p className="muted">No replies yet. Our support team will respond here.</p>
+      ) : (
+        <div className="activity-list">
+          {ticketReplies.map(reply => (
+            <article className="activity-item" key={reply.id}>
+              <div className="activity-content">
+                <strong>
+                  {reply.sender_id === selectedTicket.member_id
+                    ? (profile?.role === 'admin' ? 'Customer' : 'You')
+                    : (profile?.role === 'admin' ? 'Admin' : 'Support Team')}
+                </strong>
+                <p>{reply.message}</p>
+                <small>
+                  {new Date(reply.created_at).toLocaleString('en-IN')}
+                </small>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      <form onSubmit={sendTicketReply}>
+        <label>Write a Reply</label>
+        <textarea
+          value={ticketReply}
+          onChange={e => setTicketReply(e.target.value)}
+          placeholder="Write your message..."
+          rows={3}
+          maxLength={5000}
+          required
+        />
+
+        <button className="primary" type="submit" disabled={ticketBusy}>
+          {ticketBusy ? 'Sending...' : 'Send Reply'}
+        </button>
+      </form>
+
+      <button
+        type="button"
+        className="outline"
+        onClick={() => {
+          setSelectedTicket(null);
+          setTicketReplies([]);
+        }}
+      >
+        Close Conversation
+      </button>
+    </div>
+  )}
+</section>
+      <section className="panel recent-activity" id="activity">
+  <p className="eyebrow">YOUR DASHBOARD UPDATES</p>
+  <h2>Recent Activity & Notifications</h2>
+  <p className="muted">Your latest account activities.</p>
+
+  {recentActivities.length === 0 ? (
+    <p className="muted">No recent activity yet.</p>
+  ) : (
+    <div className="activity-list">
+      {recentActivities.slice(0, 10).map(activity => (
+        <article className="activity-item" key={activity.id}>
+          <div className="activity-icon">
+            {activity.type === 'order' ? '▤' :
+             activity.type === 'referral' ? '♧' :
+             activity.type === 'commission' ? '₹' :
+             activity.type === 'rank' ? '★' : '↗'}
+          </div>
+
+          <div className="activity-content">
+            <strong>{activity.title}</strong>
+            <p>{activity.description}</p>
+            <small>
+              {activity.date
+                ? new Date(activity.date).toLocaleString('en-IN')
+                : 'Date unavailable'}
+            </small>
+          </div>
+
+          {activity.amount != null && (
+            <strong className="activity-amount">
+              ₹{(Number(activity.amount) / 100).toFixed(2)}
+            </strong>
+          )}
+        </article>
+      ))}
+    </div>
+  )}
 </section>
 
-      <section className="panel"><h2>My orders</h2><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th><th>Retail verified</th></tr></thead><tbody>{orders.length?orders.map(o=><tr key={o.id}><td>{new Date(o.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(o.amount_paise || 0) / 100)}</td><td><span className={'status '+o.status}>{o.status}</span></td><td>{o.retail_verified?'Yes':'Pending'}</td></tr>):<tr><td colSpan="4" className="muted">No orders yet.</td></tr>}</tbody></table></div></section>
-      <section className="panel"><h2>Commission history</h2><p className="tiny muted">Commissions are calculated only on administrator-verified qualifying retail sales under a legally reviewed plan.</p><div className="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{commissions.length?commissions.map(c=><tr key={c.id}><td>{new Date(c.created_at).toLocaleDateString('en-IN')}</td><td>{money(Number(c.commission_paise || 0) / 100)}</td>
-<td>{c.payout_destination}</td></tr>):<tr><td colSpan="3" className="muted">No commissions recorded.</td></tr>}</tbody></table></div></section>
+ 
       {profile?.role==='admin'&&<><section className="panel admin"><p className="eyebrow">ADMIN CONTROL</p> 
   <h2>Withdrawal management</h2>
 
-  <div className="tablewrap">
+  <div className="tablewrap admin-withdrawal-scroll"> 
     <table>
       <thead>
         <tr>
@@ -970,7 +2030,10 @@ const hideBuyButton = hasVerifiedPurchase;
             <td>{money(Number(w.amount_paise) / 100)}</td>
             <td>
               {w.payout_method === 'upi' ? (
-                <div>UPI: {w.payout_details?.upi_id}</div>
+  <div>
+    <div>Name: {w.payout_details?.account_holder || 'Not provided'}</div>
+    <div>UPI: {w.payout_details?.upi_id}</div>
+  </div> 
               ) : (
                 <div>
                   <div>{w.payout_details?.account_holder}</div>
@@ -1038,7 +2101,7 @@ const hideBuyButton = hasVerifiedPurchase;
       </tbody>
     </table>
   </div>
-      </section><section className="panel admin"><p className="eyebrow">ADMIN CONTROL</p><h2>Order verification</h2><p className="tiny muted">Check payment proof and confirm that each order is a genuine retail sale before approving it.</p><div className="tablewrap"><table><thead><tr><th>Order</th><th>Amount</th><th>Payment Status</th><th>Retail Status</th><th>Action</th></tr></thead><tbody>{adminOrders.length ? adminOrders.map(o => (
+      </section><section className="panel admin"><p className="eyebrow">ADMIN CONTROL</p><h2>Order verification</h2><p className="tiny muted">Check payment proof and confirm that each order is a genuine retail sale before approving it.</p><div className="tablewrap admin-order-scroll"><table><thead><tr><th>Order</th><th>Amount</th><th>Payment Status</th><th>Retail Status</th><th>Action</th></tr></thead><tbody>{adminOrders.length ? adminOrders.map(o => (
   <tr key={o.id}>
     <td>{o.customer_id?.slice(0, 8) || 'Unknown'}</td>
     <td>{money(Number(o.amount_paise || 0) / 100)}</td>
@@ -1066,9 +2129,90 @@ const hideBuyButton = hasVerifiedPurchase;
 </tr>
 )) : (
   <tr>
-    <td colSpan="5" className="muted">No orders.</td>
+        <td colSpan="5" className="muted">No orders.</td>
   </tr>
-)}:<tr><td colSpan="5" className="muted">No orders.</td></tr>}</tbody></table></div></section></>}
+)}
+      </tbody></table></div></section>
+
+<section className="panel admin">
+  <p className="eyebrow">ADMIN CONTROL</p>
+  <h2>Customer Support & Complaints</h2>
+  <p className="muted">
+    Review customer complaints, respond to tickets and manage their status.
+  </p>
+  <div className="filter-row">
+  <div>
+    <label>Filter by Status</label>
+    <select
+      value={adminTicketStatusFilter}
+      onChange={e => setAdminTicketStatusFilter(e.target.value)}
+    >
+      <option value="All">All Statuses</option>
+      <option value="Submitted">Submitted</option>
+      <option value="In Review">In Review</option>
+      <option value="Replied">Replied</option>
+      <option value="Resolved">Resolved</option>
+    </select>
+  </div>
+
+  <div>
+    <label>Filter by Category</label>
+    <select
+      value={adminTicketCategoryFilter}
+      onChange={e => setAdminTicketCategoryFilter(e.target.value)}
+    >
+      <option value="All">All Categories</option>
+      <option value="Membership and payments">Membership and payments</option>
+      <option value="eBook downloads">eBook downloads</option>
+      <option value="Referral commissions">Referral commissions</option>
+      <option value="Wallet and withdrawals">Wallet and withdrawals</option>
+      <option value="Rank upgrades">Rank upgrades</option>
+      <option value="Others">Others</option>
+    </select>
+  </div>
+</div>
+
+  {filteredAdminTickets.length === 0 ? (
+    <p className="muted">No customer complaints yet.</p>
+  ) : (
+    <div className="activity-list">
+      {filteredAdminTickets.map(ticket => ( 
+        <article className="activity-item" key={ticket.id}>
+          <div className="activity-content">
+            <strong>Ticket #{ticket.ticket_number}</strong>
+            <p>{ticket.subject}</p>
+            <small>
+              Customer ID: {ticket.member_id.slice(0, 8)}
+            </small>
+            <small>Category: {ticket.category}</small>
+          </div>
+
+          <div className="activity-content">
+            <label>Complaint Status</label>
+            <select
+              value={ticket.status}
+              onChange={e => updateTicketStatus(ticket.id, e.target.value)}
+            >
+              <option value="Submitted">Submitted</option>
+              <option value="In Review">In Review</option>
+              <option value="Replied">Replied</option>
+              <option value="Resolved">Resolved</option>
+            </select>
+
+            <button
+              type="button"
+              className="mini outline"
+              onClick={() => loadTicketReplies(ticket)}
+            >
+              Open Complaint
+            </button>
+          </div>
+        </article>
+      ))}
+    </div>
+  )}
+</section>
+</>}
     </>}
     <section className="legal"><b>Important:</b> SUCCESS SKILL must sell a genuine eBook at a fair, disclosed price. Referral rewards, if offered, must be tied to verified retail sales and a compensation plan reviewed for compliance with Indian law. No payment is made merely for recruitment, joining, or upgrading a rank.</section>
     <footer>© {new Date().getFullYear()} SUCCESS SKILL · Built for learning and genuine product sales</footer>
